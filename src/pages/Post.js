@@ -12,30 +12,32 @@ const GATE_TIMES = [
   "11:00 PM", "11:30 PM", "12:00 AM", "No Gate / 24hr Open",
 ];
 
-const STEPS = ["📸 Photos", "🏠 Basic Info", "⚙️ Facilities", "✅ Review & Post"];
+const STEPS = ["📸 Photos", "🏠 Basic Info", "⚙️ Facilities", "✅ Preview & Post"];
 
 export default function Post({ go, user }) {
   const handleProfileClick = () => go("profile");
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    houseName: "", rent: "", address: "",
+    houseName: "", 
+    rent: "", 
+    address: "",
     electricity24_7: false,
-    ips:             false,
-    lift:            false,
-    security:        false,
-    gateCloseTime:   "",
-    gas:             false,
+    ips: false,
+    lift: false,
+    security: false,
+    gateCloseTime: "",
+    gas: false,
     waterBillIncluded: false,
-    amenities:       [],
-    reasonToLeave:   "",
-    photo1: false,   // demo toggles (no real upload without DB)
+    amenities: [],
+    reasonToLeave: "",
+    photo1: false,
     photo2: false,
   });
 
-  const set     = k => e  => setForm(f => ({ ...f, [k]: e.target.value }));
-  const toggle  = k       => setForm(f => ({ ...f, [k]: !f[k] }));
-  const toggleA = a       => setForm(f => ({
+  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+  const toggle = k => setForm(f => ({ ...f, [k]: !f[k] }));
+  const toggleA = a => setForm(f => ({
     ...f,
     amenities: f.amenities.includes(a)
       ? f.amenities.filter(x => x !== a)
@@ -189,6 +191,7 @@ export default function Post({ go, user }) {
               {AMENITIES.map(a => (
                 <button
                   key={a}
+                  type="button"
                   className={`amenity-pill${form.amenities.includes(a) ? " selected" : ""}`}
                   onClick={() => toggleA(a)}
                 >
@@ -253,6 +256,24 @@ export default function Post({ go, user }) {
                 <p>{form.reasonToLeave}</p>
               </div>
             )}
+
+            <div style={{ marginTop: "1.5rem" }}>
+              <div
+                className="detail-section-title"
+                style={{
+                  fontSize: ".9rem",
+                  marginBottom: ".75rem",
+                }}
+              >
+                Property Location
+              </div>
+
+              <div className="uc-box">
+                <div className="uc-icon">📍</div>
+                <p>Interactive map view will be available here.</p>
+                <span className="badge">🚧 Under Construction</span>
+              </div>
+            </div>
 
             <div style={{ marginTop: "1rem", background: "var(--gray-bg)", borderRadius: 10, padding: "12px 14px", fontSize: ".82rem", color: "var(--gray-text)" }}>
               📸 <strong>2 photos selected</strong> (demo — actual upload requires database)
