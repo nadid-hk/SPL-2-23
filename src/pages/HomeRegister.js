@@ -1,13 +1,15 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
+import LocationMap from "../components/LocationMap";
 
 export default function HomeRegister({ go }) {
   const [form, setForm] = useState({ owner: "", phone: "", houseName: "", houseNo: "" });
+  const [mapPosition, setMapPosition] = useState([24.242, 90.404]);
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const submit = e => {
     e.preventDefault();
-    alert("Property registered");
+    alert(`Property registered\nSelected location: ${mapPosition[0].toFixed(5)}, ${mapPosition[1].toFixed(5)}`);
     go("login");
   };
 
@@ -49,10 +51,18 @@ export default function HomeRegister({ go }) {
 
             <div className="fg">
               <label>Location on Map</label>
-              <div className="uc-box">
-                <div className="uc-icon"></div>
-                <p>Interactive map pin feature</p>
-                <span className="badge"> Under Construction</span>
+              <LocationMap
+                title="Choose Property Location"
+                description="Drag the pin to match the exact property entrance."
+                center={mapPosition}
+                markerPosition={mapPosition}
+                draggable
+                zoom={16}
+                height={340}
+                onPositionChange={setMapPosition}
+              />
+              <div className="map-coordinates">
+                Selected point: {mapPosition[0].toFixed(5)}, {mapPosition[1].toFixed(5)}
               </div>
             </div>
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
+import LocationMap from "../components/LocationMap";
 
 const AMENITIES = [
   "Oven", "Fridge", "Washing Machine", "AC",
@@ -34,6 +35,7 @@ export default function Post({ go, user }) {
     photo1: false,
     photo2: false,
   });
+  const [mapPosition, setMapPosition] = useState([24.242, 90.404]);
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
   const toggle = k => setForm(f => ({ ...f, [k]: !f[k] }));
@@ -137,6 +139,22 @@ export default function Post({ go, user }) {
               <input type="text" placeholder="e.g. House 5, Road 2, BoardBazar, Gazipur" value={form.address} onChange={set("address")} />
             </div>
             <div className="fg">
+              <label>Pin Exact Location</label>
+              <LocationMap
+                title="Pin Property Location"
+                description="Use zoom in/out and drag the marker to set the exact pin."
+                center={mapPosition}
+                markerPosition={mapPosition}
+                draggable
+                zoom={16}
+                height={320}
+                onPositionChange={setMapPosition}
+              />
+              <div className="map-coordinates">
+                Selected point: {mapPosition[0].toFixed(5)}, {mapPosition[1].toFixed(5)}
+              </div>
+            </div>
+            <div className="fg">
               <label>Gate Close Time</label>
               <select value={form.gateCloseTime} onChange={set("gateCloseTime")}>
                 <option value="">— Select gate close time —</option>
@@ -225,6 +243,7 @@ export default function Post({ go, user }) {
               ["🏠 House Name",   form.houseName],
               ["💰 Monthly Rent", `৳${form.rent}`],
               ["📍 Address",      form.address || "—"],
+              ["📌 Location Pin", `${mapPosition[0].toFixed(5)}, ${mapPosition[1].toFixed(5)}`],
               ["🌙 Gate Closes",  form.gateCloseTime || "Not specified"],
               ["⚡ 24/7 Electricity", form.electricity24_7 ? "Yes" : "No"],
               ["🔋 IPS",          form.ips       ? "Yes" : "No"],
@@ -268,10 +287,16 @@ export default function Post({ go, user }) {
                 Property Location
               </div>
 
-              <div className="uc-box">
-                <div className="uc-icon">📍</div>
-                <p>Interactive map view will be available here.</p>
-                <span className="badge">🚧 Under Construction</span>
+              <LocationMap
+                title="Selected Location Preview"
+                description="This is the point that will be saved with your post later."
+                center={mapPosition}
+                markerPosition={mapPosition}
+                zoom={16}
+                height={340}
+              />
+              <div className="map-coordinates">
+                Saved for later: {mapPosition[0].toFixed(5)}, {mapPosition[1].toFixed(5)}
               </div>
             </div>
 

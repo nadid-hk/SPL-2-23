@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
+import LocationMap from "../components/LocationMap";
 
 function Stars({ rating }) {
   return (
@@ -16,6 +17,7 @@ export default function Detail({ go, user, house }) {
   const [reviewText, setReviewText]   = useState("");
   const [selectedRating, setRating]   = useState(null);
   const handleProfileClick = () => go("profile");
+  const mapPosition = [24.242, 90.404];
 
   const submitReview = () => {
     if (!reviewText.trim()) { alert("Please write your review first."); return; }
@@ -124,16 +126,14 @@ export default function Detail({ go, user, house }) {
                 Property Location
               </div>
 
-              <div className="uc-box">
-                <div className="uc-icon">📍</div>
-
-                <p>
-                  Interactive map view will be available here to help students
-                  locate the property easily.
-                </p>
-
-                <span className="badge"> Under Construction</span>
-              </div>
+              <LocationMap
+                title={house.name}
+                description={house.location || "BoardBazar, Gazipur"}
+                center={mapPosition}
+                markerPosition={mapPosition}
+                zoom={16}
+                height={340}
+              />
             </div>
 
             {/* REVIEWS */}
