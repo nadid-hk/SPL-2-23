@@ -4,6 +4,25 @@ import { houses, studentPosts } from "../db";
 export default function Dashboard({ go, user }) {
   const handleProfileClick = () => go("profile");
 
+  // Dynamically inject our specific local images into the mock data arrays for rendering
+  const mappedHouses = houses.map((house, idx) => {
+    const localImages = [
+      "/images/spacejoy-nEtpvJjnPVo-unsplash.jpg",
+      "/images/minh-pham-OtXADkUh3-I-unsplash.jpg",
+      "/images/pexels-leroy-joubert-970853-35831703.jpg",
+      "/images/pexels-quang-nguyen-vinh-222549-14021929.jpg"
+    ];
+    return { ...house, image: localImages[idx % localImages.length] };
+  });
+
+  const mappedPosts = studentPosts.map((post, idx) => {
+    const localImages = [
+      "/images/pexels-leroy-joubert-970853-35831703.jpg",
+      "/images/spacejoy-nEtpvJjnPVo-unsplash.jpg"
+    ];
+    return { ...post, image: localImages[idx % localImages.length] };
+  });
+
   return (
     <div className="page">
       <Navbar page="dashboard" go={go} user={user} onProfileClick={handleProfileClick} />
@@ -25,7 +44,7 @@ export default function Dashboard({ go, user }) {
         </div>
 
         <div className="listings-grid">
-          {houses.map(house => (
+          {mappedHouses.map(house => (
             <HouseCard key={house.id} house={house} onClick={() => go("detail", house)} />
           ))}
         </div>
@@ -42,7 +61,7 @@ export default function Dashboard({ go, user }) {
         </div>
 
         <div className="listings-grid">
-          {studentPosts.map(post => (
+          {mappedPosts.map(post => (
             <PostCard key={post.id} post={post} />
           ))}
         </div>
@@ -60,14 +79,13 @@ export default function Dashboard({ go, user }) {
 /* ── HOUSE CARD ── */
 function HouseCard({ house, onClick }) {
   return (
-    <div className="prop-card" onClick={onClick}>
-      {/* Photo placeholder — under construction, all same size */}
-      <div className="prop-card-img">
-        <div className="uc-photo-overlay">
-          <span className="uc-icon-big"></span>
-          <span className="uc-photo-label">Photos coming soon</span>
-          <span className="uc-photo-sub">We will update later</span>
-        </div>
+    <div className="prop-card" onClick={onClick} style={{ cursor: 'pointer' }}>
+      <div className="prop-card-img" style={{ position: 'relative', overflow: 'hidden' }}>
+        <img 
+          src={house.image} 
+          alt={house.name} 
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
+        />
         <span className={`prop-status-badge ${house.status === "Available" ? "available" : "rented"}`}>
           {house.status}
         </span>
@@ -90,12 +108,12 @@ function HouseCard({ house, onClick }) {
 function PostCard({ post }) {
   return (
     <div className="prop-card">
-      <div className="prop-card-img">
-        <div className="uc-photo-overlay">
-          <span className="uc-icon-big"></span>
-          <span className="uc-photo-label">Photos coming soon</span>
-          <span className="uc-photo-sub">We will update later</span>
-        </div>
+      <div className="prop-card-img" style={{ overflow: 'hidden' }}>
+        <img 
+          src={post.image} 
+          alt={post.houseName} 
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
+        />
       </div>
       <div className="prop-card-body">
         <div className="prop-card-name">{post.houseName}</div>

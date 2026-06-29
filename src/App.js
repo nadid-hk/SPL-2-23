@@ -7,32 +7,43 @@ import Dashboard    from "./pages/Dashboard";
 import Detail       from "./pages/Detail";
 import Profile      from "./pages/Profile";
 import Post         from "./pages/Post";
+import AdminDashboard from "./pages/AdminDashboard";
 import "./App.css";
+import "./Darkmode.css";
 
 export default function App() {
   const [page, setPage]     = useState("home");
   const [pageData, setPageData] = useState(null);
   const [user, setUser]     = useState(null);
 
-  // go("detail", houseObject)  — second arg is optional page-level data
+  // go("detail", houseObject) — second arg is optional page-level data
   const go = (dest, data = null) => {
     setPage(dest);
     setPageData(data);
     window.scrollTo(0, 0);
   };
 
-  const handleLogin      = (userData) => setUser(userData);
+  const handleLogin = (userData) => {
+    setUser(userData);
+    if (userData?.role === "admin") {
+      go("adminDashboard");
+    } else {
+      go("dashboard");
+    }
+  };
+  
   const handleUpdateUser = (data)     => setUser(u => ({ ...u, ...data }));
 
   const shared = { go, user };
 
   return (
     <>
-      {page === "home"          && <Home          go={go} />}
+      {page === "home"          && <Home          go={go} user={user} />}
       {page === "login"         && <Login         go={go} onLogin={handleLogin} />}
       {page === "signup"        && <Signup        go={go} />}
       {page === "home-register" && <HomeRegister  go={go} />}
       {page === "dashboard"     && <Dashboard     {...shared} />}
+      {page === "adminDashboard" && <AdminDashboard {...shared} />}
       {page === "detail"        && <Detail        {...shared} house={pageData} />}
       {page === "profile"       && <Profile       {...shared} onUpdateUser={handleUpdateUser} />}
       {page === "post"          && <Post          {...shared} />}

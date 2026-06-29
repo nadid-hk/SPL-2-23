@@ -1,0 +1,98 @@
+/* ═══════════════════════════════════════════
+   DARK MODE — brick-red Airbnb theme
+   Activate by adding class "dark" to <body>
+   (import this AFTER App.css)
+═══════════════════════════════════════════ */
+
+body.dark {
+  /* Brick red — brightened so it reads on dark surfaces */
+  --red:      #e0594a;
+  --red-dark: #c0432f;
+  --red-hover:#3a201c;   /* dark red-tinted hover/well */
+
+  /* Surfaces & background (warm near-black to match the cream warmth) */
+  --cream:    #141110;   /* page background        */
+  --white:    #1d1916;   /* cards / nav / surfaces  */
+  --gray-bg:  #262019;   /* sunken fills            */
+  --gray-mid: #3a332d;   /* borders / dividers      */
+
+  /* Text */
+  --dark:     #f3efe9;   /* primary text (was near-black) */
+  --gray-text:#a89f97;   /* muted text                    */
+
+  --success:  #4ade80;
+
+  /* Softer, neutral shadows for dark UI */
+  --shadow:    0 4px 24px rgba(0,0,0,.45);
+  --shadow-lg: 0 12px 48px rgba(0,0,0,.6);
+
+  background: var(--cream);
+  color: var(--dark);
+}
+
+/* ── Hard-coded colors that don't use the variables ── */
+
+/* Navbar drop shadow */
+body.dark .nav { box-shadow: 0 2px 12px rgba(0,0,0,.5); }
+
+/* Status / step "available" & "done" green pills */
+body.dark .prop-status-badge.available,
+body.dark .step-item.done,
+body.dark .photo-slot.selected {
+  background: rgba(74,222,128,.15);
+  color: var(--success);
+}
+body.dark .photo-slot.selected { border-color: var(--success); }
+body.dark .prop-status-badge.rented { background: var(--gray-bg); color: var(--gray-text); }
+
+/* "Under construction" gradient box */
+body.dark .uc-box {
+  background: linear-gradient(135deg, #2a2113, #3a201c);
+  border-color: var(--gray-mid);
+}
+
+/* Map shell gradient */
+body.dark .map-shell {
+  background: linear-gradient(180deg, var(--white), #181412);
+}
+
+/* Reason box subtle border */
+body.dark .reason-box { border-color: #5a2c25; }
+
+/* Inputs — explicit so autofill / focus stay on-theme */
+body.dark .fg input,
+body.dark .fg textarea,
+body.dark .fg select { background: var(--gray-bg); color: var(--dark); }
+body.dark .fg input:focus,
+body.dark .fg textarea:focus,
+body.dark .fg select:focus {
+  background: var(--white);
+  box-shadow: 0 0 0 3px rgba(224,89,74,.18);
+}
+body.dark .fg input::placeholder,
+body.dark .fg textarea::placeholder { color: var(--gray-text); }
+
+/* Method-toggle active chip */
+body.dark .method-btn.active { background: var(--gray-bg); }
+
+/* Orange "under construction" badge — dim slightly */
+body.dark .badge { background: #c87f1e; }
+
+/* Error states stay readable */
+body.dark .fg input.error { border-color: #e0594a; }
+body.dark .fg .err-msg    { color: #ff8a7a; }
+
+/* Native form controls / scrollbar follow dark scheme */
+body.dark { color-scheme: dark; }
+body.dark ::-webkit-scrollbar { width: 12px; height: 12px; }
+body.dark ::-webkit-scrollbar-track { background: var(--cream); }
+body.dark ::-webkit-scrollbar-thumb {
+  background: var(--gray-mid); border-radius: 8px;
+  border: 3px solid var(--cream);
+}
+
+/* Smooth transition when toggling */
+body, .nav, .card, .prop-card, .auth-box, .detail-section,
+.contact-card, .profile-section, .fg input, .fg textarea, .fg select {
+  transition: background-color .25s ease, border-color .25s ease, color .25s ease;
+}
