@@ -297,6 +297,22 @@ export default function Detail({ go, user, house }) {
                 </div>
               )}
             </div>
+            <div className="detail-section">
+              <div className="detail-section-title">
+                Property Location
+              </div>
+
+              <div className="uc-box">
+                <div className="uc-icon">📍</div>
+
+                <p>
+                  Interactive map view will be available here to help students
+                  locate the property easily.
+                </p>
+
+                <span className="badge"> Under Construction</span>
+              </div>
+            </div>
 
             <div className="detail-section">
               <div className="detail-section-title">Property Location</div>

@@ -13,13 +13,18 @@ const GATE_TIMES = [
   "11:00 PM", "11:30 PM", "12:00 AM", "No Gate / 24hr Open",
 ];
 
+<<<<<<< HEAD
 const STEPS = ["📸 Photos", "🏠 Details", "⚙️ Facilities", "✅ Preview & Post"];
+=======
+const STEPS = ["📸 Photos", "🏠 Basic Info", "⚙️ Facilities", "✅ Preview & Post"];
+>>>>>>> 98a5b1d45de5c540d8c911683050d882fe5e5ac3
 
 export default function Post({ go, user }) {
   const handleProfileClick = () => go("profile");
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
+<<<<<<< HEAD
     // House name & owner info auto-merged from homeowner registration
     houseName:         user?.houseName     || "",   // pre-filled from owner profile
     rent:              "",
@@ -35,6 +40,22 @@ export default function Post({ go, user }) {
     reasonToLeave:     "",
     photo1:            false,
     photo2:            false,
+=======
+    houseName: "", 
+    rent: "", 
+    address: "",
+    electricity24_7: false,
+    ips: false,
+    lift: false,
+    security: false,
+    gateCloseTime: "",
+    gas: false,
+    waterBillIncluded: false,
+    amenities: [],
+    reasonToLeave: "",
+    photo1: false,
+    photo2: false,
+>>>>>>> 98a5b1d45de5c540d8c911683050d882fe5e5ac3
   });
   const [mapPosition, setMapPosition] = useState(
     user?.propertyCoords || [24.242, 90.404]
@@ -373,6 +394,7 @@ export default function Post({ go, user }) {
             )}
 
             <div style={{ marginTop: "1.5rem" }}>
+<<<<<<< HEAD
               <div className="detail-section-title" style={{ fontSize: ".9rem", marginBottom: ".75rem" }}>
                 Property Location
               </div>
@@ -397,6 +419,26 @@ export default function Post({ go, user }) {
               fontSize: ".82rem",
               color: "var(--gray-text)"
             }}>
+=======
+              <div
+                className="detail-section-title"
+                style={{
+                  fontSize: ".9rem",
+                  marginBottom: ".75rem",
+                }}
+              >
+                Property Location
+              </div>
+
+              <div className="uc-box">
+                <div className="uc-icon">📍</div>
+                <p>Interactive map view will be available here.</p>
+                <span className="badge">🚧 Under Construction</span>
+              </div>
+            </div>
+
+            <div style={{ marginTop: "1rem", background: "var(--gray-bg)", borderRadius: 10, padding: "12px 14px", fontSize: ".82rem", color: "var(--gray-text)" }}>
+>>>>>>> 98a5b1d45de5c540d8c911683050d882fe5e5ac3
               📸 <strong>2 photos selected</strong> (demo — actual upload requires database)
             </div>
 
