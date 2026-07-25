@@ -2,20 +2,76 @@ import { useState } from "react";
 import Navbar from "../components/Navbar";
 import LocationMap from "../components/LocationMap";
 
-export default function HomeRegister({ go }) {
+const STEPS = ["👤 Owner & Login", "🏠 Property & Files", "✅ Review & Submit"];
+
+export default function HomeRegister({ go, user }) {
+  const [step, setStep] = useState(1);
+
+  // 1. Updated keys to include khatianNumber and password as required by the backend schema
   const [form, setForm] = useState({
-    owner: "",
-    phone: "",
-    houseName: "",
-    houseNo: "",
+    ownerFullName: "",
+    phoneNumber: "",
+    khatianNumber: "", // Added
+    password: "",      // Added
+    housePropertyName: "",
+    houseAddress: "",
   });
+
+  // 2. Dedicated states for the binary files
+  const [housePicture, setHousePicture] = useState(null);
+  const [khatianCertificate, setKhatianCertificate] = useState(null);
+
   const [mapPosition, setMapPosition] = useState([23.9482, 90.3794]);
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
-  const submit = e => {
-    e.preventDefault();
-    setSubmitted(true);
+  const next = () => setStep(s => s + 1);
+  const prev = () => setStep(s => s - 1);
+
+  // 3. Submit handler bundling multi-part data, now incorporating credentials
+  const submit = async () => {
+    setLoading(true);
+    setErrorMessage("");
+
+    try {
+      const formData = new FormData();
+
+      const temporaryOwnerId = user?.id || "65f1abc234def56789012345";
+      formData.append("ownerId", temporaryOwnerId);
+
+      formData.append("ownerFullName", form.ownerFullName);
+      formData.append("phoneNumber", form.phoneNumber);
+      formData.append("khatianNumber", form.khatianNumber); // Appended
+      formData.append("password", form.password);           // Appended
+      formData.append("housePropertyName", form.housePropertyName);
+      formData.append("houseAddress", form.houseAddress);
+      formData.append("latitude", mapPosition[0]);
+      formData.append("longitude", mapPosition[1]);
+
+      if (housePicture) formData.append("housePicture", housePicture);
+      if (khatianCertificate) formData.append("khatianCertificate", khatianCertificate);
+
+      const response = await fetch("http://localhost:8000/api/home-register", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setSubmitted(true);
+      } else {
+        const serverError = result.errors ? result.errors.join(", ") : result.message;
+        throw new Error(serverError || "Something went wrong.");
+      }
+    } catch (err) {
+      setErrorMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {
@@ -27,8 +83,8 @@ export default function HomeRegister({ go }) {
             <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🏠</div>
             <h2>Registration <span>Submitted!</span></h2>
             <p style={{ color: "var(--gray-text)", marginTop: ".75rem", marginBottom: "1.5rem", lineHeight: 1.6 }}>
-              Your property registration for <strong>{form.houseName}</strong> is pending admin review.
-              Once approved, you'll be able to log in and manage your listing.
+              Your property registration for <strong>{form.housePropertyName}</strong> is pending admin review.
+              Once approved, you'll be able to log in and manage your listing using your Khatian Number.
             </p>
             <div style={{
               background: "var(--gray-bg)",
@@ -40,10 +96,11 @@ export default function HomeRegister({ go }) {
               lineHeight: 1.7
             }}>
               <div style={{ fontWeight: 700, marginBottom: ".5rem", color: "var(--gray-text)" }}>Submitted Details</div>
-              <div>👤 {form.owner}</div>
-              <div>📞 {form.phone}</div>
-              <div>🏠 {form.houseName}</div>
-              <div>📍 {form.houseNo}</div>
+              <div>👤 {form.ownerFullName}</div>
+              <div>📞 {form.phoneNumber}</div>
+              <div>🔑 Khatian No: {form.khatianNumber}</div>
+              <div>🏠 {form.housePropertyName}</div>
+              <div>📍 {form.houseAddress}</div>
               <div>🗺️ {mapPosition[0].toFixed(5)}, {mapPosition[1].toFixed(5)}</div>
             </div>
             <button className="btn-submit" onClick={() => go("home")}>Back to Home</button>
@@ -61,107 +118,224 @@ export default function HomeRegister({ go }) {
           <button className="back-btn" onClick={() => go("home")}>← Back to Home</button>
           <h2>Register Your <span>Property</span></h2>
           <p className="subtitle">
-            Fill in your details and pin your property on the map. An admin will verify and approve your registration.
+            Fill in your details, set your credentials, and pin your property on the map.
           </p>
 
-          <div className="auth-divider"><span>owner &amp; property details</span></div>
-
-          <form onSubmit={submit}>
-            <div className="fg">
-              <label>Owner Full Name</label>
-              <input
-                type="text"
-                placeholder="Your full name"
-                value={form.owner}
-                onChange={set("owner")}
-                required
-              />
+          {errorMessage && (
+            <div style={{ background: "#ffebee", color: "#c62828", padding: "1rem", borderRadius: 8, marginBottom: "1rem", fontSize: "0.9rem" }}>
+              ⚠️ {errorMessage}
             </div>
+          )}
 
-            <div className="fg">
-              <label>Phone Number</label>
-              <input
-                type="tel"
-                placeholder="+880 1X XX XXX XXXX"
-                value={form.phone}
-                onChange={set("phone")}
-                required
-              />
-            </div>
+          <div className="step-bar">
+            {STEPS.map((s, i) => {
+              const n = i + 1;
+              const cls = step === n ? "active" : step > n ? "done" : "";
+              return <div key={n} className={`step-item ${cls}`}>{step > n ? "✓ " : ""}{s}</div>;
+            })}
+          </div>
 
-            <div className="fg">
-              <label>House / Property Name</label>
-              <input
-                type="text"
-                placeholder="e.g. Green Valley Boarding"
-                value={form.houseName}
-                onChange={set("houseName")}
-                required
-              />
-            </div>
+          {/* ── STEP 1 — OWNER DETAILS & LOGIN CREDENTIALS ── */}
+          {step === 1 && (
+            <div>
+              <div className="auth-divider"><span>Owner Details &amp; Login Credentials</span></div>
 
-            <div className="fg">
-              <label>House Number / Address</label>
-              <input
-                type="text"
-                placeholder="e.g. House 12, Road 5, BoardBazar"
-                value={form.houseNo}
-                onChange={set("houseNo")}
-                required
-              />
-            </div>
+              <div className="fg">
+                <label>Owner Full Name</label>
+                <input
+                  type="text"
+                  placeholder="Your full name"
+                  value={form.ownerFullName}
+                  onChange={set("ownerFullName")}
+                  required
+                />
+              </div>
 
-            <div className="fg">
-              <label>House Picture</label>
-              <div className="uc-box">
-                <div className="uc-icon"></div>
-                <p>Photo upload feature</p>
-                <span className="badge">Under Construction</span>
+              <div className="fg">
+                <label>Phone Number</label>
+                <input
+                  type="tel"
+                  placeholder="01XXXXXXXXX"
+                  value={form.phoneNumber}
+                  onChange={set("phoneNumber")}
+                  required
+                />
+              </div>
+
+              <div className="fg">
+                <label>Khatian Number (Used for Login)</label>
+                <input
+                  type="text"
+                  placeholder="Enter your unique Khatian Number"
+                  value={form.khatianNumber}
+                  onChange={set("khatianNumber")}
+                  required
+                />
+              </div>
+
+              <div className="fg">
+                <label>Account Password</label>
+                <input
+                  type="password"
+                  placeholder="Create a secure password"
+                  value={form.password}
+                  onChange={set("password")}
+                  required
+                />
+              </div>
+
+              <div className="step-actions">
+                <button className="btn-submit" onClick={() => {
+                  if (!form.ownerFullName.trim() || !form.phoneNumber.trim() || !form.khatianNumber.trim() || !form.password.trim()) {
+                    alert("⚠️ Please fill in your name, phone number, Khatian Number, and password to continue.");
+                    return;
+                  }
+                  next();
+                }}>
+                  Continue →
+                </button>
               </div>
             </div>
+          )}
 
-            <div className="fg">
-              <label>Location on Map</label>
-              <LocationMap
-                title="Choose Property Location"
-                description="Drag the pin to match the exact property entrance."
-                center={mapPosition}
-                markerPosition={mapPosition}
-                draggable
-                zoom={16}
-                height={340}
-                onPositionChange={setMapPosition}
-              />
-              <div className="map-coordinates">
-                Selected point: {mapPosition[0].toFixed(5)}, {mapPosition[1].toFixed(5)}
+          {/* ── STEP 2 — PROPERTY METADATA & FILES ── */}
+          {step === 2 && (
+            <div>
+              <div className="auth-divider"><span>Property Metadata &amp; Files</span></div>
+
+              <div className="fg">
+                <label>House / Property Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Green Valley Boarding"
+                  value={form.housePropertyName}
+                  onChange={set("housePropertyName")}
+                  required
+                />
+              </div>
+
+              <div className="fg">
+                <label>House Number / Address</label>
+                <input
+                  type="text"
+                  placeholder="e.g. House 12, Road 5, BoardBazar"
+                  value={form.houseAddress}
+                  onChange={set("houseAddress")}
+                  required
+                />
+              </div>
+
+              <div className="fg">
+                <label>House Picture</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setHousePicture(e.target.files[0] || null)}
+                  required
+                />
+                {housePicture && (
+                  <div style={{ fontSize: ".8rem", color: "var(--gray-text)", marginTop: ".35rem" }}>
+                    ✅ {housePicture.name}
+                  </div>
+                )}
+              </div>
+
+              <div className="fg">
+                <label>Location on Map</label>
+                <LocationMap
+                  title="Choose Property Location"
+                  description="Drag the pin to match the exact property entrance."
+                  center={mapPosition}
+                  markerPosition={mapPosition}
+                  draggable
+                  zoom={16}
+                  height={340}
+                  onPositionChange={setMapPosition}
+                />
+                <div className="map-coordinates">
+                  Selected point: {mapPosition[0].toFixed(5)}, {mapPosition[1].toFixed(5)}
+                </div>
+              </div>
+
+              <div className="fg">
+                <label>Khatian Certificate Document</label>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => setKhatianCertificate(e.target.files[0] || null)}
+                  required
+                />
+                {khatianCertificate && (
+                  <div style={{ fontSize: ".8rem", color: "var(--gray-text)", marginTop: ".35rem" }}>
+                    ✅ {khatianCertificate.name}
+                  </div>
+                )}
+              </div>
+
+              <div className="step-actions">
+                <button className="btn-submit secondary" onClick={prev}>← Back</button>
+                <button className="btn-submit" onClick={() => {
+                  if (!form.housePropertyName.trim() || !form.houseAddress.trim() || !housePicture || !khatianCertificate) {
+                    alert("⚠️ Please fill in the property name and address, and upload both the house picture and Khatian certificate to continue.");
+                    return;
+                  }
+                  next();
+                }}>
+                  Review Registration →
+                </button>
               </div>
             </div>
+          )}
 
-            <div className="fg">
-              <label>Khatian Certificate</label>
-              <div className="uc-box">
-                <div className="uc-icon"></div>
-                <p>For authentication</p>
-                <span className="badge">Under Construction</span>
+          {/* ── STEP 3 — REVIEW & SUBMIT ── */}
+          {step === 3 && (
+            <div>
+              <div className="auth-divider"><span>Review Your Registration</span></div>
+
+              {[
+                ["👤 Owner Full Name", form.ownerFullName || "—"],
+                ["📞 Phone Number", form.phoneNumber || "—"],
+                ["🔑 Khatian Number", form.khatianNumber || "—"],
+                ["🔒 Password", form.password ? "•".repeat(form.password.length) : "—"],
+                ["🏠 Property Name", form.housePropertyName || "—"],
+                ["📍 Address", form.houseAddress || "—"],
+                ["🗺️ Coordinates", `${mapPosition[0].toFixed(5)}, ${mapPosition[1].toFixed(5)}`],
+              ].map(([k, v]) => (
+                <div className="summary-row" key={k}>
+                  <span className="summary-key">{k}</span>
+                  <span className="summary-value">{v}</span>
+                </div>
+              ))}
+
+              <div style={{ marginTop: "1rem", background: "var(--gray-bg)", borderRadius: 10, padding: "12px 14px", fontSize: ".82rem", color: "var(--gray-text)" }}>
+                📎 <strong>Files attached:</strong>{" "}
+                {housePicture ? `House Picture (${housePicture.name})` : "No house picture"}
+                {", "}
+                {khatianCertificate ? `Khatian Certificate (${khatianCertificate.name})` : "No Khatian certificate"}
+              </div>
+
+              <div style={{
+                background: "#fff8e1",
+                border: "1px solid #ffe082",
+                borderRadius: 8,
+                padding: ".85rem 1rem",
+                fontSize: ".82rem",
+                color: "#795548",
+                marginTop: "1rem",
+                lineHeight: 1.6
+              }}>
+                ⏳ After submitting, an <strong>admin will review</strong> your registration.
+                You will be able to log in with your Khatian Number and password once approved.
+              </div>
+
+              <div className="step-actions" style={{ marginTop: "1.4rem" }}>
+                <button className="btn-submit secondary" onClick={prev}>← Edit</button>
+                <button className="btn-submit" onClick={submit} disabled={loading}>
+                  {loading ? "Uploading & Registering..." : "Submit for Admin Approval"}
+                </button>
               </div>
             </div>
-
-            <div style={{
-              background: "#fff8e1",
-              border: "1px solid #ffe082",
-              borderRadius: 8,
-              padding: ".85rem 1rem",
-              fontSize: ".82rem",
-              color: "#795548",
-              marginBottom: "1.2rem",
-              lineHeight: 1.6
-            }}>
-              ⏳ After submitting, an <strong>admin will review</strong> your registration and all the details above.
-              You'll get access to log in once confirmed.
-            </div>
-
-            <button type="submit" className="btn-submit">Submit for Admin Approval</button>
-          </form>
+          )}
 
           <p className="auth-foot">
             Already approved?{" "}

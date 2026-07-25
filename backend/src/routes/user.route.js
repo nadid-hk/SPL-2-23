@@ -5,8 +5,7 @@ import {
     googleAuth,
     logoutUser,
     refreshAccessToken,
-    getCurrentUser,
-    updateProfile
+    getCurrentUser
 } from "../controllers/user.controller.js"
 import  {verifyJWT}  from "../middleware/auth.middleware.js"
 
@@ -21,6 +20,9 @@ router.route("/refresh-token").post(refreshAccessToken)
 // Protected routes
 router.route("/logout").post(verifyJWT, logoutUser)
 router.route("/me").get(verifyJWT, getCurrentUser)
-router.route("/profile").patch(verifyJWT, updateProfile)
+// NOTE: profile updates (including picture) are handled by profile.route.js,
+// which is mounted alongside this router and includes multer + Cloudinary
+// upload handling and the home-owner "picture only" restriction. Do not
+// re-add a PATCH /profile route here — a duplicate silently shadows it.
 
 export default router

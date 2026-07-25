@@ -41,7 +41,7 @@ export default function App() {
       {page === "home"          && <Home          go={go} user={user} />}
       {page === "login"         && <Login         go={go} onLogin={handleLogin} />}
       {page === "signup"        && <Signup        go={go} />}
-      {page === "home-register" && <HomeRegister  go={go} />}
+      {page === "home-register" && <HomeRegister go={go} user={user} />}
       {page === "dashboard"     && <Dashboard     {...shared} />}
       {page === "adminDashboard" && <AdminDashboard {...shared} />}
       {page === "detail"        && <Detail        {...shared} house={pageData} />}

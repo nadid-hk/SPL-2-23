@@ -1,7 +1,6 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
 import { GoogleLogin } from '@react-oauth/google';
-
 const TYPES = [
   { id: "student",   label: "Student"    },
   { id: "owner",     label: "Home Owner" },
@@ -14,44 +13,27 @@ const API_BASE = "http://localhost:8000/api/v1/users";
 
 function GoogleBtn({ label, onSuccess, onError }) {
   return (
-    <div style={{ 
-      width: '100%', 
-      display: 'flex', 
-      justifyContent: 'center', 
-      marginTop: '0.5rem',
-      marginBottom: '0.5rem'
-    }}>
-      <GoogleLogin
-        onSuccess={onSuccess}
-        onError={onError}
-        useOneTap
-        text="continue_with"
-        shape="rectangular"
-        width="100%"
-      />
+    <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+      <GoogleLogin onSuccess={onSuccess} onError={onError} useOneTap text="continue_with" shape="rectangular" width="100%" />
     </div>
   );
 }
 
 export default function Login({ go, onLogin }) {
   const [type, setType] = useState("student");
-  const [form, setForm] = useState({ email: "", mobile: "", password: "", rank: "" });
+  const [form, setForm] = useState({ email: "", mobile: "", password: "", rank: "", khatianNumber: "" }); // added khatianNumber state key
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
-      // Decode the JWT token to get user info
       const decoded = JSON.parse(atob(credentialResponse.credential.split('.')[1]));
-
-      // Bug 1 fix: enforce @iut-dhaka.edu for student Google login
       if (type === "student" && !IUT_EMAIL.test(decoded.email)) {
         setErrors({ google: "Only @iut-dhaka.edu Google accounts are allowed for student login." });
         return;
       }
 
-      // Exchange Google identity for our own session via the backend
       const res = await fetch(`${API_BASE}/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,7 +47,6 @@ export default function Login({ go, onLogin }) {
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         setErrors({ google: data.message || "Google login failed on the server." });
         return;
@@ -73,6 +54,9 @@ export default function Login({ go, onLogin }) {
 
       const u = data.data.user;
       onLogin({
+        _id: u._id, // FIX: real DB id was never being stored client-side,
+        // which silently broke every user._id === owner._id comparison
+        // downstream (e.g. Detail.js's isThisOwner check).
         name: u.name,
         email: u.email,
         mobile: u.phone || "",
@@ -82,6 +66,7 @@ export default function Login({ go, onLogin }) {
         dept: u.dept || "",
         batch: u.batch || "",
         bio: u.bio || "",
+        role: u.role || type
       });
       go("dashboard");
     } catch (error) {
@@ -117,7 +102,7 @@ export default function Login({ go, onLogin }) {
       if (!form.rank) errs.rank = "Rank is required.";
     }
     if (type === "owner") {
-      if (!form.mobile) errs.mobile = "Mobile number is required.";
+      if (!form.khatianNumber) errs.khatianNumber = "Khatian number is required.";
     }
     if (!form.password) errs.password = "Password is required.";
 
@@ -127,20 +112,23 @@ export default function Login({ go, onLogin }) {
     }
     setErrors({});
 
-    // Owner/Admin: no backend models exist yet for these account types,
-    // so keep local-only behaviour as before.
-    if (type === "owner" || type === "admin") {
-      const name = form.email ? form.email.split("@")[0] : "Owner";
+    // ONLY Admin keeps local mock bypass now
+    if (type === "admin") {
+      const name = form.email ? form.email.split("@")[0] : "Admin";
       onLogin({ name, email: form.email, mobile: form.mobile, type, role: type, rank: "" });
-      // Navigation is handled by App.js handleLogin based on role
       return;
     }
 
     setSubmitting(true);
     try {
-      const payload = type === "temporary"
-        ? { rank: form.rank, password: form.password }
-        : { email: form.email, password: form.password };
+      let payload;
+      if (type === "temporary") {
+        payload = { rank: form.rank, password: form.password };
+      } else if (type === "owner") {
+        payload = { khatianNumber: form.khatianNumber, password: form.password };
+      } else {
+        payload = { email: form.email, password: form.password };
+      }
 
       const res = await fetch(`${API_BASE}/login`, {
         method: "POST",
@@ -159,6 +147,10 @@ export default function Login({ go, onLogin }) {
 
       const u = data.data.user;
       onLogin({
+        _id: u._id, // FIX: real DB id was never being stored client-side,
+        // which silently broke every user._id === owner._id comparison
+        // downstream (e.g. Detail.js's isThisOwner check, which gates the
+        // "Mark as Rented / Available" controls to only the owning homeowner).
         name: u.name,
         email: u.email || "",
         mobile: u.phone || "",
@@ -168,6 +160,9 @@ export default function Login({ go, onLogin }) {
         batch: u.batch || "",
         bio: u.bio || "",
         picture: u.picture || "",
+        role: u.role || type,
+        housePropertyName: u.homeRegister?.housePropertyName || "",
+        houseAddress: u.homeRegister?.houseAddress || "",
       });
       go("dashboard");
     } catch (err) {
@@ -189,7 +184,6 @@ export default function Login({ go, onLogin }) {
           <h2>Welcome back to <span>KHOJ</span></h2>
           <p className="subtitle">Select your account type to continue</p>
 
-          {/* TYPE SELECTOR */}
           <div className="type-selector">
             {TYPES.map(t => (
               <button
@@ -199,7 +193,7 @@ export default function Login({ go, onLogin }) {
                 onClick={() => {
                   setType(t.id);
                   setErrors({});
-                  setForm({ email: "", mobile: "", password: "", rank: "" });
+                  setForm({ email: "", mobile: "", password: "", rank: "", khatianNumber: "" });
                 }}
               >
                 {t.label}
@@ -207,47 +201,26 @@ export default function Login({ go, onLogin }) {
             ))}
           </div>
 
-          {/* GOOGLE SIGN-IN — not shown for temporary */}
           {showGoogle && (
             <>
-              <GoogleBtn
-                label="Continue with Google"
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-              />
+              <GoogleBtn label="Continue with Google" onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
               <div className="auth-divider"><span>or</span></div>
             </>
           )}
 
-          {errors.google && (
-            <span className="err-msg" style={{ display: 'block', marginBottom: '10px' }}>
-              {errors.google}
-            </span>
-          )}
-
-          {errors.form && (
-            <span className="err-msg" style={{ display: 'block', marginBottom: '10px' }}>
-              {errors.form}
-            </span>
-          )}
+          {errors.google && <span className="err-msg" style={{ display: 'block', marginBottom: '10px' }}>{errors.google}</span>}
+          {errors.form && <span className="err-msg" style={{ display: 'block', marginBottom: '10px' }}>{errors.form}</span>}
 
           {type === "temporary" && (
-            <p className="auth-note">
-              Temporary accounts have limited access and expire after 6 months.
-            </p>
+            <p className="auth-note">Temporary accounts have limited access and expire after 6 months.</p>
           )}
 
           <form onSubmit={submit}>
-            {/* Student / Admin / Temporary -> email */}
             {(type === "student" || type === "admin" || type === "temporary") && (
               <div className="fg">
                 <label>
                   Email Address
-                  {type === "student" && (
-                    <span style={{ color: "var(--red)", fontSize: "0.75rem", marginLeft: 6 }}>
-                      (@iut-dhaka.edu only)
-                    </span>
-                  )}
+                  {type === "student" && <span style={{ color: "var(--red)", fontSize: "0.75rem", marginLeft: 6 }}>(@iut-dhaka.edu only)</span>}
                 </label>
                 <input
                   type="email"
@@ -260,45 +233,32 @@ export default function Login({ go, onLogin }) {
               </div>
             )}
 
-            {/* Temporary -> rank */}
             {type === "temporary" && (
               <div className="fg">
                 <label>Admission / Merit Rank</label>
-                <input
-                  type="text"
-                  className={errors.rank ? "error" : ""}
-                  placeholder="e.g. 00142"
-                  value={form.rank}
-                  onChange={set("rank")}
-                />
+                <input type="text" className={errors.rank ? "error" : ""} placeholder="e.g. 00142" value={form.rank} onChange={set("rank")} />
                 {errors.rank && <span className="err-msg">{errors.rank}</span>}
               </div>
             )}
 
-            {/* Home Owner -> mobile */}
+            {/* Shifted Home Owner field label to Khatian Number matching specifications */}
             {type === "owner" && (
               <div className="fg">
-                <label>Mobile Number</label>
+                <label>Khatian Number</label>
                 <input
-                  type="tel"
-                  className={errors.mobile ? "error" : ""}
-                  placeholder="+880 1X XX XXX XXXX"
-                  value={form.mobile}
-                  onChange={set("mobile")}
+                  type="text"
+                  className={errors.khatianNumber ? "error" : ""}
+                  placeholder="Enter your Khatian Number"
+                  value={form.khatianNumber}
+                  onChange={set("khatianNumber")}
                 />
-                {errors.mobile && <span className="err-msg">{errors.mobile}</span>}
+                {errors.khatianNumber && <span className="err-msg">{errors.khatianNumber}</span>}
               </div>
             )}
 
             <div className="fg">
               <label>Password</label>
-              <input
-                type="password"
-                className={errors.password ? "error" : ""}
-                placeholder="Enter your password"
-                value={form.password}
-                onChange={set("password")}
-              />
+              <input type="password" className={errors.password ? "error" : ""} placeholder="Enter your password" value={form.password} onChange={set("password")} />
               {errors.password && <span className="err-msg">{errors.password}</span>}
             </div>
 
@@ -307,14 +267,8 @@ export default function Login({ go, onLogin }) {
             </button>
           </form>
 
-          <p className="auth-foot">
-            Don't have an account?{" "}
-            <button type="button" onClick={() => go("signup")}>Create account</button>
-          </p>
-          <p className="auth-foot" style={{ marginTop: ".35rem" }}>
-            Own a house?{" "}
-            <button type="button" onClick={() => go("home-register")}>Register property</button>
-          </p>
+          <p className="auth-foot">Don't have an account? <button type="button" onClick={() => go("signup")}>Create account</button></p>
+          <p className="auth-foot" style={{ marginTop: ".35rem" }}>Own a house? <button type="button" onClick={() => go("home-register")}>Register property</button></p>
         </div>
       </div>
     </div>
