@@ -1,4 +1,7 @@
 import { useState } from "react";
+// ─── CHAT FEATURE (Talha) ───
+import ChatNavButton from "./ChatNavButton";
+// ─── END CHAT FEATURE ───
 
 export default function Navbar({ page, go, user, notifications = [], clearNotification }) {
   const [open, setOpen]   = useState(false);
@@ -62,7 +65,14 @@ export default function Navbar({ page, go, user, notifications = [], clearNotifi
 
         {/* Action controls + Dynamic Profile Circle */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          
+
+          {/* ─── CHAT FEATURE (Talha) ───
+              Messages button + unread badge. The unread count and its live
+              socket updates all live inside ChatNavButton, so nothing else
+              in this file needs to know about chat. */}
+          <ChatNavButton user={user} active={page === "chat"} onClick={() => nav("chat")} />
+          {/* ─── END CHAT FEATURE ─── */}
+
           {/* NOTIFICATION BELL BUTTON */}
           {user && (
             <div style={{ position: "relative" }}>

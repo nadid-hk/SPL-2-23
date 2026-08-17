@@ -8,6 +8,9 @@ import Detail       from "./pages/Detail";
 import Profile      from "./pages/Profile";
 import Post         from "./pages/Post";
 import AdminDashboard from "./pages/AdminDashboard";
+// ─── CHAT FEATURE (Talha) ───
+import Chat         from "./pages/Chat";
+// ─── END CHAT FEATURE ───
 import "./App.css";
 import "./Darkmode.css";
 
@@ -47,6 +50,11 @@ export default function App() {
       {page === "detail"        && <Detail        {...shared} house={pageData} />}
       {page === "profile"       && <Profile       {...shared} onUpdateUser={handleUpdateUser} />}
       {page === "post"          && <Post          {...shared} />}
+      {/* ─── CHAT FEATURE (Talha) ───
+          go("chat") opens the newest thread; go("chat", conversationId)
+          (used by the Message Owner button) opens that specific one. */}
+      {page === "chat"          && <Chat          {...shared} initialConversationId={pageData} />}
+      {/* ─── END CHAT FEATURE ─── */}
     </>
   );
 }

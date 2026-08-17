@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import LocationMap from "../components/LocationMap";
+// ─── CHAT FEATURE (Talha) ───
+import MessageOwnerButton from "../components/MessageOwnerButton";
+// ─── END CHAT FEATURE ───
 
 // Turns a Review document's timestamp into the short relative label the
 // review cards expect ("Just now" for anything from this session, a plain
@@ -541,6 +544,15 @@ export default function Detail({ go, user, house }) {
                   >
                     {isRented ? "🔴 Currently Rented" : "📞 Contact Home Owner"}
                   </button>
+
+                  {/* ─── CHAT FEATURE (Talha) ───
+                      In-app alternative to the phone number above: opens a
+                      real conversation with this listing's owner. The button
+                      hides itself when there's no owner to message (or the
+                      viewer is the owner), so no extra condition is needed
+                      here. */}
+                  <MessageOwnerButton go={go} user={user} house={house} />
+                  {/* ─── END CHAT FEATURE ─── */}
 
                   <div className="contact-actions">
                     <button className="btn-action" onClick={() => alert("Share link copied! (demo)")}>🔗 Share</button>
