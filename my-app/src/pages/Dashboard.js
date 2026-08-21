@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Navbar from "../components/Navbar";
+import SearchMap from "../components/SearchMap";
 
 const API_BASE = "http://localhost:8000/api";
 
@@ -7,8 +8,11 @@ export default function Dashboard({ go, user }) {
   const handleProfileClick = () => go("profile");
 
   const [posts, setPosts] = useState([]);
+  const [iutGate, setIutGate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [activeId, setActiveId] = useState(null);
+
 
   useEffect(() => {
     const fetchApprovedPosts = async () => {
@@ -17,8 +21,13 @@ export default function Dashboard({ go, user }) {
       try {
         const res = await fetch(`${API_BASE}/posts/approved`);
         const result = await res.json();
-        if (res.ok && result.success) {
-          setPosts(result.data || []);
+        if (res.ok && result.success) {// 🐛 FIX: /api/posts/approved now returns { posts, iutGate }
+          // instead of a bare array (see post.controller.js) so the map
+          // card can place the gate pin without hardcoding coordinates on
+          // the frontend. Previously this did `setPosts(result.data || [])`
+          // which is why nothing ever rendered once the shape changed.
+          setPosts(result.data?.posts || []);
+          setIutGate(result.data?.iutGate || null);
         } else {
           throw new Error(result.message || "Could not load listings.");
         }
@@ -30,6 +39,41 @@ export default function Dashboard({ go, user }) {
     };
     fetchApprovedPosts();
   }, []);
+
+  // ── NEW: map pins built straight from Post data (not HomeRegister) —
+  // this is the fix for "the map should reflect posts, not home
+  // registrations." Every approved Post already carries its own
+  // exactLocation (copied from the registered house at post-creation time,
+  // see post.service.js) plus the pre-computed `distance` block from
+  // HouseDistance. Posts with no usable coordinates are simply skipped so a
+  // bad/missing pin can't crash the map.
+  const pins = useMemo(() => {
+    return posts
+      .filter((p) => Array.isArray(p.exactLocation?.coordinates) && p.exactLocation.coordinates.length === 2)
+      .map((p) => {
+        const [lng, lat] = p.exactLocation.coordinates;
+        return {
+          id: p._id,
+          title: p.registeredHouse?.housePropertyName || "Unnamed Property",
+          rent: p.monthlyRent,
+          lat,
+          lng,
+          thumb: p.photos?.[0]?.url || null,
+          ratingAvg: null,
+          reviewCount: null,
+          distanceFromGateMeters: p.distance?.meters ?? null,
+        };
+      });
+  }, [posts]);
+
+  // SearchMap calls `go("detail", pin.id)` on pin click — Dashboard's own
+  // convention (see PostCard/HouseCard below) passes the full post object
+  // instead, so Detail.js gets everything it needs without a re-fetch.
+  // This little wrapper bridges the two without touching SearchMap itself.
+  const goToDetailById = (page, id) => {
+    const fullPost = posts.find((p) => p._id === id);
+    go(page, fullPost || id);
+  };
 
   // NOTE: "Recommended" and "Student Posts" used to be two separate mock
   // arrays (`houses` and `studentPosts`) with different shapes. In the real
@@ -79,7 +123,7 @@ export default function Dashboard({ go, user }) {
           </div>
         )} */}
 
-        {/* ── STUDENT POSTS ── */}
+        {/* ── STUDENT POSTS + MAP CARD (Airbnb-style split view) ── */}
         <div className="section-header" style={{ marginTop: "3rem" }}>
           <div>
             <div className="section-title">Listing Of Houses</div>
@@ -95,10 +139,31 @@ export default function Dashboard({ go, user }) {
         ) : posts.length === 0 ? (
           <EmptyState msg="No posts yet. Be the first to post your property!" />
         ) : (
-          <div className="listings-grid">
-            {posts.map(post => (
-              <PostCard key={post._id} post={post} go={go} />
-            ))}
+          <div className="search-split">
+            <div className="search-results-col">
+              <div className="listings-grid split">
+                {posts.map(post => (
+                  <PostCard
+                    key={post._id}
+                    post={post}
+                    go={go}
+                    active={post._id === activeId}
+                    onHover={() => setActiveId(post._id)}
+                    onHoverEnd={() => setActiveId(null)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="search-map-col">
+              <SearchMap
+                pins={pins}
+                go={goToDetailById}
+                activeId={activeId}
+                onActive={setActiveId}
+                gate={iutGate}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -168,15 +233,28 @@ function HouseCard({ post, onClick }) {
   );
 }
 
-/* ── STUDENT POST CARD ── */
-function PostCard({ post, go }) {
+/* ── STUDENT POST CARD ──
+   `active` + `onHover`/`onHoverEnd` sync this card's highlight state with
+   its pin on the SearchMap (hover a card -> its price pin lifts on the map,
+   and vice versa via SearchMap's onActive). */
+function PostCard({ post, go, active, onHover, onHoverEnd }) {
   const houseName = post.registeredHouse?.housePropertyName || "Unnamed Property";
   const image = post.photos?.[0]?.url;
   const has24_7 = post.utilities?.includes("24/7 Electricity");
   const isRented = post.isRented || false; // FIX: real field lives on Post, not registeredHouse
+  const distanceLabel =
+    post.distance?.meters != null
+      ? post.distance.meters < 1000
+        ? `${Math.round(post.distance.meters / 10) * 10} m from IUT`
+        : `${post.distance.km} km from IUT`
+      : null;
 
   return (
-    <div className="prop-card">
+    <div
+      className={`prop-card${active ? " active" : ""}`}
+      onMouseEnter={onHover}
+      onMouseLeave={onHoverEnd}
+    >
       <div className="prop-card-img" style={{ position: 'relative', overflow: 'hidden' }}>
         {image ? (
           <img
@@ -207,6 +285,9 @@ function PostCard({ post, go }) {
           <div className="prop-meta-row"><span></span> ৳{post.monthlyRent?.toLocaleString()} / month</div>
           <div className="prop-meta-row"><span></span> Posted by: {post.ownerName}</div>
           <div className="prop-meta-row"><span></span> {has24_7 ? "24/7 Electricity" : "No 24/7 backup"}</div>
+          {distanceLabel && (
+            <div className="prop-meta-row"><span></span> 🚶 {distanceLabel}</div>
+          )}
         </div>
         {/* FIX: this used to just alert() a few fields instead of opening
             the real Detail page — the button never received `go` and never

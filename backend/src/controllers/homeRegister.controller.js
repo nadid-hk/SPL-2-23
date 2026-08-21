@@ -2,7 +2,12 @@ import mongoose from "mongoose";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { ApiError } from "../utils/apiError.util.js";
-import { createHomeRegistration, getApprovedHomeRegistrations } from "../services/homeRegister.service.js";
+import {
+    createHomeRegistration,
+    getApprovedHomeRegistrations,
+    resolveOwnerGroupId,
+    findOwnerInfoByKhatianNumber
+} from "../services/homeRegister.service.js";
 
 // 🐛 REAL BUG (root cause of "two home owners share one profile picture"):
 // this used to read `ownerId` straight out of the request body with no
@@ -21,11 +26,53 @@ import { createHomeRegistration, getApprovedHomeRegistrations } from "../service
 export const registerHome = asyncHandler(async (req, res) => {
     const ownerId = new mongoose.Types.ObjectId();
 
-    const registration = await createHomeRegistration(req.validatedData, ownerId);
+    // NEW: "Register another property" support. The client may send
+    // `previousKhatianNumber` (validated/passed through by the middleware).
+    // We NEVER trust a group id from the client directly — same trust
+    // boundary as `ownerId` above — instead we re-look-up the referenced
+    // property server-side and take ITS ownerGroupId. If the number doesn't
+    // match anything, resolveOwnerGroupId throws a 400 rather than silently
+    // starting an unlinked group.
+    const ownerGroupId = await resolveOwnerGroupId(req.validatedData.previousKhatianNumber);
+
+    const registration = await createHomeRegistration(req.validatedData, ownerId, ownerGroupId);
 
     return res
         .status(201)
         .json(new ApiResponse(201, registration, "Registration submitted successfully. It is now pending admin approval."));
+});
+
+// GET /api/home-register/lookup/:khatianNumber
+// NEW: powers the "Register another property" autofill step on the
+// frontend. Given a Khatian number the owner claims to have registered
+// before, returns just enough non-sensitive info (name + phone + previous
+// property name) to prefill step 1 of the form — the owner can still edit
+// anything before submitting. Per product decision this is intentionally
+// NOT password-protected: the Khatian number itself is treated as the
+// identifier here, same as it's used to log in.
+export const lookupOwnerByKhatian = asyncHandler(async (req, res) => {
+    const { khatianNumber } = req.params;
+
+    if (!khatianNumber?.trim()) {
+        throw new ApiError(400, "Khatian number is required");
+    }
+
+    const info = await findOwnerInfoByKhatianNumber(khatianNumber.trim());
+
+    if (!info) {
+        throw new ApiError(
+            404,
+            "No property found for this Khatian number. Double-check the number, or leave this blank if it's your first property."
+        );
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {
+            ownerFullName: info.ownerFullName,
+            phoneNumber: info.phoneNumber,
+            previousPropertyName: info.previousPropertyName
+        }, "Owner info found"));
 });
 
 // GET /api/home-register/approved

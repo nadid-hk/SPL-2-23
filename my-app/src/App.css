@@ -487,6 +487,72 @@ button { font-family: 'DM Sans', sans-serif; cursor: pointer; }
   padding: 0.55rem 0.7rem;
 }
 
+/* ── NEW: Airbnb-style split view — listing cards + sticky map card.
+   This was the missing piece for the dashboard: SearchMap.js and the
+   .search-map* classes existed nowhere in App.css, so even once the map
+   card was wired up in JS it had no styling to render into (0-height
+   container, no sticky behaviour). ── */
+.search-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 44%);
+  gap: 1.25rem;
+  align-items: start;
+}
+.search-results-col { min-width: 0; }
+.search-map-col { position: sticky; top: 82px; height: calc(100vh - 104px); }
+.listings-grid.split { grid-template-columns: repeat(auto-fill, minmax(225px, 1fr)); }
+.prop-card.active { border-color: var(--red); box-shadow: var(--shadow-lg); transform: translateY(-3px); }
+
+.search-map, .search-map-only {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1.5px solid var(--gray-mid);
+  box-shadow: var(--shadow);
+}
+.search-map { height: 100%; }
+.search-map-container { height: 100%; width: 100%; min-height: 320px; }
+.search-map-only { height: calc(100vh - 130px); min-height: 500px; }
+.search-map-only .search-map { height: 100%; border: none; box-shadow: none; }
+
+/* ── Airbnb-style price bubble pins ── */
+.leaflet-div-icon.price-pin-wrap, .leaflet-div-icon.iut-gate-pin { background: transparent; border: none; }
+.price-pin {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--white); color: var(--dark); font-family: 'Sora', sans-serif;
+  font-weight: 800; font-size: 0.78rem; padding: 4px 10px; border-radius: 999px;
+  border: 1.5px solid var(--gray-mid); box-shadow: 0 2px 8px rgba(0,0,0,.28);
+  white-space: nowrap; cursor: pointer; transition: transform 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+.price-pin:hover, .price-pin.active {
+  background: var(--red); color: #fff; border-color: var(--red); transform: scale(1.14);
+}
+
+/* ── Map "card kicker" popup ── */
+.map-popup .leaflet-popup-content-wrapper { padding: 0; border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-lg); }
+.map-popup .leaflet-popup-content { margin: 0; width: 224px !important; }
+.map-popup-card { width: 224px; background: var(--white); color: var(--dark); }
+.map-popup-img { width: 100%; height: 124px; object-fit: cover; display: block; }
+.map-popup-noimg { width: 100%; height: 124px; display: flex; align-items: center; justify-content: center; font-size: 2rem; background: var(--gray-bg); }
+.map-popup-body { padding: 0.6rem 0.8rem 0.8rem; }
+.map-popup-title { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.9rem; margin-bottom: 3px; line-height: 1.25; }
+.map-popup-meta { font-size: 0.73rem; color: var(--gray-text); margin-bottom: 0.45rem; }
+.map-popup-price { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 0.98rem; }
+.map-popup-price span { font-weight: 500; font-size: 0.72rem; color: var(--gray-text); }
+.map-popup-btn {
+  margin-top: 0.6rem; width: 100%; background: var(--red); color: #fff; border: none;
+  border-radius: 9px; padding: 0.5rem; font-weight: 700; font-family: 'Sora', sans-serif;
+  cursor: pointer; font-size: 0.8rem;
+}
+.map-popup-btn:hover { background: var(--red-dark); }
+body.dark .leaflet-popup-content-wrapper, body.dark .leaflet-popup-tip { background: var(--white); color: var(--dark); }
+
+@media (max-width: 900px) {
+  /* Stack instead of side-by-side on narrow/mobile screens — a sticky
+     44%-width map makes no sense once columns can't sit side by side. */
+  .search-split { grid-template-columns: 1fr; }
+  .search-map-col { position: static; height: 380px; }
+}
+
 
 /* ═══════════════════════════════════════════
    DASHBOARD

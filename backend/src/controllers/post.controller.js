@@ -3,6 +3,10 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import { ApiError } from "../utils/apiError.util.js";
 import { createPost, getApprovedPosts } from "../services/post.service.js";
 import { setPostRentalStatus } from "../services/post.service.js";
+import { IUT_GATE } from "../constants.js";
+// E:\SPL-II_working_directory\backend\src\constants.js
+// E:\SPL-II_working_directory\backend\src\controllers\user.controller.js
+
 
 // 🐛 Same bug class as homeRegister.controller.js: this trusted a raw
 // `authorId` from the request body. Unlike home registration, whoever is
@@ -21,9 +25,15 @@ export const createPostHandler = asyncHandler(async (req, res) => {
 });
 
 // GET /api/posts/approved — public/student-facing listings dashboard
+// ── NEW: response shape changed from a bare array to { posts, iutGate } so
+// the dashboard map card can drop its gate pin without hardcoding
+// coordinates on the frontend. If anything else on the frontend still reads
+// `result.data` as an array directly, update it to `result.data.posts`.
 export const getListings = asyncHandler(async (req, res) => {
     const posts = await getApprovedPosts();
-    return res.status(200).json(new ApiResponse(200, posts, "Approved listings fetched"));
+    return res
+        .status(200)
+        .json(new ApiResponse(200, { posts, iutGate: IUT_GATE }, "Approved listings fetched"));
 });
 
 // PATCH /api/posts/:id/rental-status

@@ -2,6 +2,7 @@ import { Post } from "../models/post.model.js";
 import { HomeRegister } from "../models/homeRegister.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiError } from "../utils/apiError.util.js";
+import { upsertHouseDistance, getHouseDistancesMap } from "./houseDistance.service.js";
 import fs from "fs";
 
 export const createPost = async (data, authorId) => {
@@ -58,6 +59,20 @@ export const createPost = async (data, authorId) => {
             reasonTenantLeft: data.reasonTenantLeft
         });
 
+        // ── NEW: compute + persist the distance-from-IUT-gate the moment the
+        // pin coordinates are known, instead of computing it on every read.
+        // This is what feeds the map card's price pins + "12 min walk" text
+        // on the dashboard. It's keyed to the HomeRegister (see
+        // houseDistance.service.js for why), and failing here should never
+        // block the post itself from being created — if it errors we log and
+        // move on; the dashboard just won't show a distance for that pin
+        // until it's recomputed.
+        try {
+            await upsertHouseDistance(data.registeredHouse, exactLocation.coordinates);
+        } catch (distanceErr) {
+            console.error("Failed to compute house distance for", data.registeredHouse, distanceErr);
+        }
+
         return newPost;
     } catch (error) {
         data.photoLocalPaths.forEach((p) => {
@@ -71,10 +86,39 @@ export const createPost = async (data, authorId) => {
 // HomeRegister owner ID to reliably determine "is this the owner of THIS
 // property", instead of the previous fragile name-matching that had nothing
 // solid to compare against.
+//
+// ── NEW: this is also the fix for "map card isn't showing in the
+// dashboard" — the dashboard's map needs a lat/lng + distance per listing,
+// and it needs to come from the Post (the thing that's actually shown /
+// approved), not from HomeRegister directly. Previously getApprovedPosts
+// returned bare posts with no distance info attached at all, so there was
+// nothing for a map component to render pins from except raw
+// exactLocation coordinates with no "X min walk" context.
 export const getApprovedPosts = async () => {
-    return Post.find({ status: "approved" })
+    const posts = await Post.find({ status: "approved" })
         .populate("registeredHouse", "housePropertyName houseAddress owner")
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .lean();
+
+    if (posts.length === 0) return posts;
+
+    const distanceMap = await getHouseDistancesMap(posts.map((p) => p.registeredHouse?._id));
+
+    return posts.map((post) => {
+        // distanceMap.get(String(post.registeredHouse._id)) instead of null for showning the distance
+        const d = post.registeredHouse ? null : null;
+        return {
+            ...post,
+            distance: d
+                ? {
+                      meters: d.distanceMeters,
+                      km: d.distanceKm,
+                      walkMinutes: d.estimatedWalkMinutes,
+                      rideMinutes: d.estimatedRideMinutes,
+                  }
+                : null,
+        };
+    });
 };
 
 // ── NEW: Post.isRented already existed on the schema — it's the correct,

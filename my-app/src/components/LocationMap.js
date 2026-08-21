@@ -9,6 +9,15 @@ import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
 const DEFAULT_CENTER = [24.242, 90.404];
 
+// 🐛 FIX: SearchMap.js already does `import { IUT_GATE_LATLNG } from
+// "./LocationMap"` — it was never exported here, so that import silently
+// resolved to `undefined`, which meant SearchMap's `center` fallback and
+// gate marker position were both broken. This must stay in sync with the
+// backend's IUT_GATE in constants.js (23.94862, 90.37935) — the previous
+// DEFAULT_CENTER above ([24.242, 90.404]) was a different, unrelated point
+// and should NOT be reused for the gate.
+export const IUT_GATE_LATLNG = [23.94862, 90.37935];
+
 const DefaultIcon = L.icon({
   iconRetinaUrl: marker2x,
   iconUrl: marker1x,

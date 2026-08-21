@@ -1,7 +1,17 @@
 import fs from "fs";
 
 export const validateHomeRegister = (req, res, next) => {
-    const { ownerFullName, phoneNumber, housePropertyName, houseAddress, latitude, longitude, khatianNumber, password } = req.body;
+    const {
+        ownerFullName,
+        phoneNumber,
+        housePropertyName,
+        houseAddress,
+        latitude,
+        longitude,
+        khatianNumber,
+        password,
+        previousKhatianNumber // NEW: optional — set when using "Register another property"
+    } = req.body;
     const files = req.files || {};
 
     const housePictureFile = files.housePicture ? files.housePicture[0] : null;
@@ -19,6 +29,13 @@ export const validateHomeRegister = (req, res, next) => {
     // Validate credentials additions
     if (!khatianNumber?.trim()) errors.push("Khatian number is required");
     if (!password || password.length < 6) errors.push("Password must be at least 6 characters long");
+
+    // NEW: every property still gets its own separate khatianNumber/password
+    // (per product decision), so a "previous" one — if supplied — must not
+    // be the same string as the new one being registered right now.
+    if (previousKhatianNumber?.trim() && khatianNumber?.trim() && previousKhatianNumber.trim() === khatianNumber.trim()) {
+        errors.push("Previous Khatian number must be different from the new Khatian number you're creating.");
+    }
 
     // Validate BD phone number
     const cleanPhone = phoneNumber ? phoneNumber.replace(/\s+/g, '').replace('+88', '') : '';
@@ -57,7 +74,11 @@ export const validateHomeRegister = (req, res, next) => {
         housePictureLocalPath: housePictureFile.path,
         khatianCertificateLocalPath: khatianCertificateFile.path,
         khatianNumber,
-        password
+        password,
+        // NEW: passed through as-is (trimmed / null). The controller/service
+        // layer is what actually resolves this into an ownerGroupId — this
+        // middleware only validates shape, never touches the DB.
+        previousKhatianNumber: previousKhatianNumber?.trim() || null
     };
 
     next();

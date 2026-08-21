@@ -3,7 +3,56 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiError } from "../utils/apiError.util.js";
 import fs from "fs";
 
-export const createHomeRegistration = async (data, ownerId) => {
+// NEW: Given a khatianNumber the owner claims belongs to a property they
+// registered before, this resolves the *authoritative* ownerGroupId for
+// that property. This is deliberately re-derived server-side from the DB
+// every time — the client never sends an ownerGroupId directly. That
+// mirrors the existing fix in homeRegister.controller.js, where the server
+// generates `owner` itself instead of trusting anything the client sends
+// for identity.
+//
+// Throws if the previousKhatianNumber doesn't match any existing property,
+// so the owner gets a clear error instead of silently starting a brand new
+// unlinked group.
+export const resolveOwnerGroupId = async (previousKhatianNumber) => {
+    if (!previousKhatianNumber) return null;
+
+    const previousProperty = await HomeRegister
+        .findOne({ khatianNumber: previousKhatianNumber })
+        .select("ownerGroupId");
+
+    if (!previousProperty) {
+        throw new ApiError(
+            400,
+            "No existing property found for the previous Khatian number provided. Double-check it, or leave it blank if this is your first property."
+        );
+    }
+
+    return previousProperty.ownerGroupId;
+};
+
+// NEW: Public-safe lookup used by the "Register another property" autofill
+// step. Only returns non-sensitive display info (name + phone + the
+// previous property's name) — never the password, ownerGroupId, or any
+// other internal id. Per product decision, this is intentionally NOT
+// password-gated: knowing a Khatian number is treated as enough to prefill
+// a form the owner can still review and edit before submitting.
+export const findOwnerInfoByKhatianNumber = async (khatianNumber) => {
+    const property = await HomeRegister
+        .findOne({ khatianNumber })
+        .select("ownerFullName phoneNumber housePropertyName status");
+
+    if (!property) return null;
+
+    return {
+        ownerFullName: property.ownerFullName,
+        phoneNumber: property.phoneNumber,
+        previousPropertyName: property.housePropertyName,
+        previousPropertyStatus: property.status
+    };
+};
+
+export const createHomeRegistration = async (data, ownerId, ownerGroupId = null) => {
     let housePictureResult = null;
     let khatianCertificateResult = null;
 
@@ -24,7 +73,7 @@ export const createHomeRegistration = async (data, ownerId) => {
         // NOTE: `status` is NOT set here — it always comes in as the schema's
         // default "pending". This registration is not usable/live until an
         // admin explicitly approves it via the admin review endpoints.
-        const newRegistration = await HomeRegister.create({
+        const payload = {
             owner: ownerId,
             ownerFullName: data.ownerFullName,
             phoneNumber: data.phoneNumber,
@@ -44,7 +93,20 @@ export const createHomeRegistration = async (data, ownerId) => {
                 url: khatianCertificateResult.secure_url,
                 publicId: khatianCertificateResult.public_id
             }
-        });
+        };
+
+        // NEW: only set ownerGroupId explicitly when we resolved one from a
+        // previousKhatianNumber. Otherwise leave the key out entirely so the
+        // schema's default (= this document's own _id) kicks in, making it
+        // the first property of a brand new group.
+        if (ownerGroupId) {
+            payload.ownerGroupId = ownerGroupId;
+        }
+        if (data.previousKhatianNumber) {
+            payload.linkedViaKhatianNumber = data.previousKhatianNumber;
+        }
+
+        const newRegistration = await HomeRegister.create(payload);
 
         return newRegistration;
     } catch (error) {
@@ -56,9 +118,6 @@ export const createHomeRegistration = async (data, ownerId) => {
 
 // Used to populate the "House / Property Name" <select> on the Post creation
 // form — only properties an admin has approved should ever be selectable.
-// ── FIX: also select houseMap (real coordinates) and owner, so post
-// creation and any downstream ownership checks have real data instead of
-// relying on hardcoded fallback values.
 export const getApprovedHomeRegistrations = async () => {
     return HomeRegister.find({ status: "approved" })
         .select("housePropertyName houseAddress houseMap housePicture owner")
