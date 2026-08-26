@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { GoogleLogin } from "@react-oauth/google"; // ✅ Import added
 import Navbar from "../components/Navbar";
+import { API_USERS as API_BASE } from "../config";
 
 const IUT_EMAIL = /^[a-zA-Z0-9._%+-]+@iut-dhaka\.edu$/;
-const API_BASE = "http://localhost:8000/api/v1/users";
 
 function GoogleBtn({ onSuccess, onError }) {
   return (

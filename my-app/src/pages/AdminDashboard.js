@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import Navbar from "../components/Navbar";
-
-const API_BASE = "http://localhost:8000/api";
+import { API_BASE } from "../config";
 
 export default function AdminDashboard({ go, user }) {
   const [activeTab, setActiveTab]       = useState("overview");

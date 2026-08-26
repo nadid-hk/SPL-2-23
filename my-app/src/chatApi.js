@@ -6,7 +6,7 @@
 // pages it isn't practical to inline the fetch each time — every caller
 // needs the same credentials/error handling and would otherwise drift.
 // ─────────────────────────────────────────────────────────────────────────
-const API_BASE = "http://localhost:8000/api";
+import { API_BASE } from "./config";
 
 // All chat routes are behind verifyJWT, and this app keeps the JWT in an
 // httpOnly cookie — so every request must send credentials.

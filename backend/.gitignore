@@ -1,2 +1,18 @@
-.env
+# Backend-specific ignores. The repo-root .gitignore already covers
+# node_modules, .env, logs and OS junk for both projects — these are the
+# rules that only make sense here.
+
+# Installed packages (also covered at root; kept so this folder is
+# self-contained if it is ever checked out on its own).
 /node_modules
+
+# Secrets: Mongo URI, JWT secrets, Cloudinary keys.
+# .env.sample IS committed — it lists the keys with the values stripped.
+.env
+!.env.sample
+
+# multer's scratch directory: uploads land here before Cloudinary takes
+# them. The folder itself is kept (via .gitkeep) because multer fails with
+# ENOENT if it doesn't exist on a fresh clone.
+public/temp/*
+!public/temp/.gitkeep

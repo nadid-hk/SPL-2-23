@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
+import { API_BASE } from "../config";
 
 const AMENITIES = [
   "Oven", "Fridge", "Washing Machine", "AC",
@@ -71,7 +72,7 @@ export default function Post({ go, user }) {
       setHousesLoading(true);
       setHousesError("");
       try {
-        const response = await fetch("http://localhost:8000/api/home-register/approved");
+        const response = await fetch(`${API_BASE}/home-register/approved`);
         const result = await response.json();
         if (response.ok && result.success) {
           setHouses(result.data || []);
@@ -118,7 +119,7 @@ export default function Post({ go, user }) {
       if (photo1) formData.append("photos", photo1);
       if (photo2) formData.append("photos", photo2);
 
-      const response = await fetch("http://localhost:8000/api/posts", {
+      const response = await fetch(`${API_BASE}/posts`, {
         method: "POST",
         credentials: "include", // FIX: required now that /posts needs a logged-in session
         body: formData,

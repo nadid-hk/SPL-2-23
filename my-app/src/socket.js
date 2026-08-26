@@ -11,8 +11,9 @@
 // browser never sees the raw JWT, so there is no token to pass here.
 // ─────────────────────────────────────────────────────────────────────────
 import { io } from "socket.io-client";
+import { API_ORIGIN } from "./config";
 
-const SOCKET_URL = "http://localhost:8000";
+const SOCKET_URL = API_ORIGIN;
 
 let socket = null;
 

@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Navbar from "../components/Navbar";
 import SearchMap from "../components/SearchMap";
-
-const API_BASE = "http://localhost:8000/api";
+import { API_BASE } from "../config";
 
 export default function Dashboard({ go, user }) {
   const handleProfileClick = () => go("profile");
@@ -12,7 +11,6 @@ export default function Dashboard({ go, user }) {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [activeId, setActiveId] = useState(null);
-
 
   useEffect(() => {
     const fetchApprovedPosts = async () => {

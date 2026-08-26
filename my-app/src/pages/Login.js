@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
 import { GoogleLogin } from '@react-oauth/google';
+import { API_USERS as API_BASE } from "../config";
 const TYPES = [
   { id: "student",   label: "Student"    },
   { id: "owner",     label: "Home Owner" },
@@ -9,7 +10,6 @@ const TYPES = [
 ];
 
 const IUT_EMAIL = /^[a-zA-Z0-9._%+-]+@iut-dhaka\.edu$/;
-const API_BASE = "http://localhost:8000/api/v1/users";
 
 function GoogleBtn({ label, onSuccess, onError }) {
   return (

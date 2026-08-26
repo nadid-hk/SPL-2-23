@@ -8,6 +8,7 @@ import { app } from './app.js'
 import http from "http"
 import { Server } from "socket.io"
 import { initChatSocket } from "./socket/chat.socket.js"
+import { corsOptions } from "./utils/cors.util.js"
 // ─── END CHAT FEATURE ───
 
 dotenv.config({
@@ -22,10 +23,7 @@ const server = http.createServer(app)
 // Same CORS rules as the REST API in app.js — credentials must be allowed
 // because the socket handshake authenticates with the accessToken cookie.
 const io = new Server(server, {
-    cors: {
-        origin: "http://localhost:3000",
-        credentials: true
-    }
+    cors: corsOptions
 })
 
 initChatSocket(io)

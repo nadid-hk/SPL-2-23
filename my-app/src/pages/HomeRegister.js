@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
 import LocationMap from "../components/LocationMap";
+import { API_BASE } from "../config";
 
 const STEPS = ["👤 Owner & Login", "🏠 Property & Files", "✅ Review & Submit"];
 
@@ -55,7 +56,7 @@ export default function HomeRegister({ go, user }) {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/home-register/lookup/${encodeURIComponent(khatian)}`
+        `${API_BASE}/home-register/lookup/${encodeURIComponent(khatian)}`
       );
       const result = await response.json();
 
@@ -117,7 +118,7 @@ export default function HomeRegister({ go, user }) {
       if (housePicture) formData.append("housePicture", housePicture);
       if (khatianCertificate) formData.append("khatianCertificate", khatianCertificate);
 
-      const response = await fetch("http://localhost:8000/api/home-register", {
+      const response = await fetch(`${API_BASE}/home-register`, {
         method: "POST",
         body: formData,
       });

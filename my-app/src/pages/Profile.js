@@ -1,7 +1,6 @@
 import { useState, useRef } from "react";
 import Navbar from "../components/Navbar";
-
-const API_BASE = "http://localhost:8000/api/v1/users";
+import { API_USERS as API_BASE } from "../config";
 
 // ─────────────────────────────────────────────
 // STUDENT PROFILE

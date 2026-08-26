@@ -3,6 +3,7 @@ import Navbar from "../components/Navbar";
 import LocationMap from "../components/LocationMap";
 // ─── CHAT FEATURE (Talha) ───
 import MessageOwnerButton from "../components/MessageOwnerButton";
+import { API_BASE } from "../config";
 // ─── END CHAT FEATURE ───
 
 // Turns a Review document's timestamp into the short relative label the
@@ -51,7 +52,7 @@ export default function Detail({ go, user, house }) {
 
     setReviewsLoading(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/reviews/${homeRegisterId}`);
+      const res = await fetch(`${API_BASE}/reviews/${homeRegisterId}`);
       const data = await res.json();
       if (res.ok && data.success) {
         setReviewStats({ averageRating: data.data.averageRating, reviewCount: data.data.reviewCount });
@@ -121,7 +122,7 @@ export default function Detail({ go, user, house }) {
     setReviewSubmitError("");
 
     try {
-      const res = await fetch("http://localhost:8000/api/reviews", {
+      const res = await fetch(`${API_BASE}/reviews`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -160,7 +161,7 @@ export default function Detail({ go, user, house }) {
       return false;
     }
     try {
-      const res = await fetch(`http://localhost:8000/api/posts/${postId}/rental-status`, {
+      const res = await fetch(`${API_BASE}/posts/${postId}/rental-status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

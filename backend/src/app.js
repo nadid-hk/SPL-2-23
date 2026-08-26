@@ -1,5 +1,6 @@
 import express from "express"
 import cors from "cors"
+import { corsOptions } from "./utils/cors.util.js"
 import cookieParser from "cookie-parser"
 import userRouter from "./routes/user.route.js"
 import profileRouter from "./routes/profile.route.js" // ── FIX: Import your new profile router
@@ -14,10 +15,11 @@ import chatRouter from "./routes/chat.route.js"
 
 const app = express()
 
-app.use(cors({
-    origin: "http://localhost:3000", 
-    credentials: true
-}))
+// ─── CROSS-DEVICE ACCESS ─── was: origin: "http://localhost:3000"
+// Hardcoding one origin meant a laptop opening the app over the LAN as
+// http://<ip>:3000 had every response discarded by its browser. See
+// utils/cors.util.js. index.js must use the SAME policy for the websocket.
+app.use(cors(corsOptions))
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
