@@ -15,6 +15,7 @@ import { chatApi } from "../chatApi";
 import { getSocket } from "../socket";
 import { chatNotifications } from "../chatNotifications";
 import "../Chat.css";
+import { FaRocketchat } from "react-icons/fa";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
@@ -325,7 +326,11 @@ export default function Chat({ go, user, initialConversationId = null }) {
                 history is fetched for it, so nothing is marked seen. */}
             {!activeId ? (
               <section className="chat-thread chat-thread-placeholder">
-                <span className="chat-empty-icon">💬</span>
+                <span className="chat-empty-icon"><FaRocketchat style={{
+        fontSize: "30px",
+        color: "#e0594a",
+        cursor: "pointer"
+    }}/></span>
                 <p>Select a conversation to open it.</p>
               </section>
             ) : (

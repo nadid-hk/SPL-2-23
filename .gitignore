@@ -28,6 +28,7 @@ out/
 # multer writes incoming files here before they go to Cloudinary; they are
 # per-machine scratch, not source.
 backend/public/temp/*
+backend/private/pending-uploads/*
 !backend/public/temp/.gitkeep
 
 # ── Logs ─────────────────────────────────────────────────────────────────

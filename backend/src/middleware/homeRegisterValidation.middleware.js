@@ -1,5 +1,4 @@
 import fs from "fs";
-
 export const validateHomeRegister = (req, res, next) => {
     const {
         ownerFullName,

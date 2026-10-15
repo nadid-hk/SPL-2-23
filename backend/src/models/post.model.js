@@ -12,6 +12,18 @@ const postSchema = new mongoose.Schema(
             ref: "HomeRegister",
             required: [true, "Post must belong to a registered property"]
         },
+         photoLocalPaths: {
+            type: [String],
+            default: [],
+            validate: {
+                validator: function (val) {
+                    // A pending post must have its 2 temp files waiting for review.
+                    return this.status !== "pending" || val.length === 2;
+                },
+                message: "You must upload exactly 2 photos for the listing."
+            }
+        },
+       // Cloudinary photos: only filled in once an admin approves.
         photos: {
             type: [
                 {
@@ -21,9 +33,9 @@ const postSchema = new mongoose.Schema(
             ],
             validate: {
                 validator: function (val) {
-                    return val.length === 2;
+                    return this.status !== "approved" || val.length === 2;
                 },
-                message: "You must upload exactly 2 photos for the listing."
+                message: "An approved listing must have exactly 2 photos."
             }
         },
         ownerName: {

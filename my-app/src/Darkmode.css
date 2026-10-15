@@ -1,8 +1,4 @@
-/* ═══════════════════════════════════════════
-   DARK MODE — brick-red Airbnb theme
-   Activate by adding class "dark" to <body>
-   (import this AFTER App.css)
-═══════════════════════════════════════════ */
+
 
 body.dark {
   /* Brick red — brightened so it reads on dark surfaces */
@@ -96,3 +92,10 @@ body, .nav, .card, .prop-card, .auth-box, .detail-section,
 .contact-card, .profile-section, .fg input, .fg textarea, .fg select {
   transition: background-color .25s ease, border-color .25s ease, color .25s ease;
 }
+
+/* ── UI polish additions ── */
+body.dark .notice.warn { background: #2a2113; color: #e0b46b; border-color: #5a4520; }
+body.dark .status-btn.to-available {
+  background: rgba(74,222,128,.15); color: var(--success); border-color: rgba(74,222,128,.4);
+}
+body.dark .admin-chip { background: var(--gray-bg); }

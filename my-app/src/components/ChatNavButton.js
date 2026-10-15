@@ -8,6 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { useUnreadChatCount } from "../chatNotifications";
 import "../Chat.css";
+import { FaRocketchat } from "react-icons/fa";
 
 export default function ChatNavButton({ user, active, onClick }) {
   const unreadCount = useUnreadChatCount(user?._id);
@@ -23,7 +24,12 @@ export default function ChatNavButton({ user, active, onClick }) {
       aria-label={unreadCount > 0 ? `Messages (${unreadCount} unread)` : "Messages"}
       style={active ? { background: "var(--red-hover)" } : undefined}
     >
-      💬
+      <FaRocketchat style={{
+        fontSize: "30px",
+        color: "#e0594a",
+        cursor: "pointer"
+    }}/>
+
       {unreadCount > 0 && (
         <span className="chat-nav-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
       )}

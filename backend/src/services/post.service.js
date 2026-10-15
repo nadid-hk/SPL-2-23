@@ -3,70 +3,43 @@ import { HomeRegister } from "../models/homeRegister.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiError } from "../utils/apiError.util.js";
 import { upsertHouseDistance, getHouseDistancesMap } from "./houseDistance.service.js";
+import { removeLocalFile } from "../utils/removeLocalFile.util.js";
 import fs from "fs";
 
 export const createPost = async (data, authorId) => {
-    // Guard: the selected house must exist AND already be admin-approved.
-    const house = await HomeRegister.findById(data.registeredHouse);
-    if (!house) throw new ApiError(404, "Selected property does not exist");
-    if (house.status !== "approved") {
-        throw new ApiError(400, "You can only create a post for a property that an admin has approved");
-    }
-
-    let uploadedPhotos = [];
-
     try {
-        for (const localPath of data.photoLocalPaths) {
-            const result = await uploadOnCloudinary(localPath);
-            if (!result) throw new Error("Photo upload execution failed.");
-            uploadedPhotos.push({ url: result.secure_url, publicId: result.public_id });
+        const house = await HomeRegister.findById(data.registeredHouse);
+        if (!house) throw new ApiError(404, "Selected property does not exist");
+        if (house.status !== "approved") {
+            throw new ApiError(400, "You can only create a post for a property that an admin has approved");
         }
 
-        data.photoLocalPaths.forEach((p) => {
-            if (fs.existsSync(p)) fs.unlinkSync(p);
-        });
-
-        // Fetch properties directly from the pre-existing HomeRegister document
         const fullAddress = house.houseAddress || "Address not specified";
 
-        // ── FIX: HomeRegister stores its geo-point under `houseMap.coordinates`
-        // — it has no `exactLocation` or top-level `coordinates` field at all
-        // (those names only exist on the Post schema). The old code read the
-        // wrong field names here, so `house.exactLocation` and
-        // `house.coordinates` were always undefined and every post silently
-        // got the hardcoded fallback baked in permanently at creation time.
         const registeredCoordinates = house.houseMap?.coordinates;
         const exactLocation = {
             type: "Point",
             coordinates:
                 Array.isArray(registeredCoordinates) && registeredCoordinates.length === 2
-                    ? registeredCoordinates // real coordinates from the registration
-                    : [90.404, 24.242] // fallback ONLY if none were ever saved
+                    ? registeredCoordinates
+                    : [90.404, 24.242]
         };
 
         const newPost = await Post.create({
             author: authorId,
             registeredHouse: data.registeredHouse,
-            photos: uploadedPhotos,
+            photoLocalPaths: data.photoLocalPaths, // uploaded to Cloudinary only on approval
             ownerName: data.ownerName,
             contactPhone: data.contactPhone,
             monthlyRent: data.monthlyRent,
-            fullAddress,               // Saved from database
-            exactLocation,             // Saved from database
+            fullAddress,
+            exactLocation,
             gateClosedTime: data.gateClosedTime,
             utilities: data.utilities,
             features: data.features,
             reasonTenantLeft: data.reasonTenantLeft
         });
 
-        // ── NEW: compute + persist the distance-from-IUT-gate the moment the
-        // pin coordinates are known, instead of computing it on every read.
-        // This is what feeds the map card's price pins + "12 min walk" text
-        // on the dashboard. It's keyed to the HomeRegister (see
-        // houseDistance.service.js for why), and failing here should never
-        // block the post itself from being created — if it errors we log and
-        // move on; the dashboard just won't show a distance for that pin
-        // until it's recomputed.
         try {
             await upsertHouseDistance(data.registeredHouse, exactLocation.coordinates);
         } catch (distanceErr) {
@@ -75,9 +48,8 @@ export const createPost = async (data, authorId) => {
 
         return newPost;
     } catch (error) {
-        data.photoLocalPaths.forEach((p) => {
-            if (fs.existsSync(p)) fs.unlinkSync(p);
-        });
+        // Note: the guards above also land here, so rejected requests don't leave temp files behind.
+        (data.photoLocalPaths || []).forEach(removeLocalFile);
         throw error;
     }
 };

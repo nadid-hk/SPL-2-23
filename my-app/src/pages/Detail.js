@@ -5,6 +5,12 @@ import LocationMap from "../components/LocationMap";
 import MessageOwnerButton from "../components/MessageOwnerButton";
 import { API_BASE } from "../config";
 // ─── END CHAT FEATURE ───
+import { CiSaveDown2 } from "react-icons/ci";
+import { IoCall } from "react-icons/io5";
+import { FiArrowLeft, FiShare2, FiAlertTriangle, FiCheckCircle, FiZap, FiShield, FiClock, FiDroplet, FiBatteryCharging } from "react-icons/fi";
+import { MdOutlineElevator, MdOutlineLocalFireDepartment, MdOutlineAdminPanelSettings } from "react-icons/md";
+import { FaStar, FaBangladeshiTakaSign, FaHouseChimney } from "react-icons/fa6";
+import { BsCircleFill } from "react-icons/bs";
 
 // Turns a Review document's timestamp into the short relative label the
 // review cards expect ("Just now" for anything from this session, a plain
@@ -19,7 +25,7 @@ function Stars({ rating }) {
   return (
     <div className="stars">
       {[1, 2, 3, 4, 5].map(i => (
-        <span key={i} className={`star${i <= Math.round(currentRating) ? "" : " empty"}`}>★</span>
+        <FaStar key={i} className={`star${i <= Math.round(currentRating) ? "" : " empty"}`} />
       ))}
     </div>
   );
@@ -176,7 +182,7 @@ export default function Detail({ go, user, house }) {
       return true;
     } catch (err) {
       setRentalUpdateError(err.message);
-      alert(`❌ ${err.message}`);
+      alert(err.message);
       return false;
     }
   };
@@ -189,14 +195,14 @@ export default function Detail({ go, user, house }) {
     const success = await updateRentalStatusOnServer(true);
     setShowRentedConfirm(false);
     if (success) {
-      alert("✅ Property marked as Rented.\n\nStudents will see it as unavailable.");
+      alert("Property marked as Rented.\n\nStudents will see it as unavailable.");
     }
   };
 
   const handleMarkAvailable = async () => {
     const success = await updateRentalStatusOnServer(false);
     if (success) {
-      alert("✅ Property marked as Available again.");
+      alert("Property marked as Available again.");
     }
   };
 
@@ -206,14 +212,14 @@ export default function Detail({ go, user, house }) {
   };
 
   const facilities = [
-    { label: "Electricity",   sub: hasUtility("24/7 Electricity") ? "24/7 Available" : "Not 24/7" },
-    { label: "IPS",           sub: hasUtility("IPS") ? "IPS Available" : "No IPS" },
-    { label: "Lift/Elevator", sub: hasUtility("Lift") ? "Available" : "Not Available" },
-    { label: "Security",      sub: hasUtility("Security Guard") ? "Security Guard" : "No Guard" },
-    { label: "Gate Closes",   sub: house?.gateClosedTime || house?.gateCloseTime || "Not Specified" },
-    { label: "Gas",           sub: hasUtility("Gas") ? "Gas Available" : "No Gas (Cylinder)" },
-    { label: "Water Bill",    sub: hasUtility("Water Bill Included") ? "Included in Rent" : "Not Included" },
-    { label: "Current Rent",  sub: `৳${monthlyRentAmount.toLocaleString()} / month` },
+    { icon: <FiZap />, label: "Electricity",   sub: hasUtility("24/7 Electricity") ? "24/7 Available" : "Not 24/7" },
+    { icon: <FiBatteryCharging />, label: "IPS",           sub: hasUtility("IPS") ? "IPS Available" : "No IPS" },
+    { icon: <MdOutlineElevator />, label: "Lift/Elevator", sub: hasUtility("Lift") ? "Available" : "Not Available" },
+    { icon: <FiShield />, label: "Security",      sub: hasUtility("Security Guard") ? "Security Guard" : "No Guard" },
+    { icon: <FiClock />, label: "Gate Closes",   sub: house?.gateClosedTime || house?.gateCloseTime || "Not Specified" },
+    { icon: <MdOutlineLocalFireDepartment />, label: "Gas",           sub: hasUtility("Gas") ? "Gas Available" : "No Gas (Cylinder)" },
+    { icon: <FiDroplet />, label: "Water Bill",    sub: hasUtility("Water Bill Included") ? "Included in Rent" : "Not Included" },
+    { icon: <FaBangladeshiTakaSign />, label: "Current Rent",  sub: `৳${monthlyRentAmount.toLocaleString()} / month` },
   ];
 
   // ── FIX: COORDINATE CONVERSION ──
@@ -245,67 +251,28 @@ export default function Detail({ go, user, house }) {
 
       <div className="detail-content">
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap", marginBottom: ".25rem" }}>
-          <button className="back-btn" onClick={() => go("dashboard")} style={{ margin: 0 }}>
-            ← Back to Listings
+          <button className="back-btn" onClick={() => go("dashboard")} style={{ margin: 0, display: "inline-flex", alignItems: "center", gap: ".4rem" }}>
+            <FiArrowLeft /> Back to Listings
           </button>
 
           {/* STATUS BADGE — visible to everyone */}
           <span className={`prop-status-badge ${isRented ? "rented" : "available"}`} style={{
-            fontSize: ".82rem",
-            padding: ".3rem .85rem",
-            borderRadius: 20,
-            fontWeight: 700,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: ".35rem"
+            position: "static", fontSize: ".82rem", padding: ".3rem .85rem", borderRadius: 20,
+            fontWeight: 700, display: "inline-flex", alignItems: "center", gap: ".35rem"
           }}>
-            {isRented ? "🔴 Rented" : "🟢 Available"}
+            <BsCircleFill size={8} /> {isRented ? "Rented" : "Available"}
           </span>
 
-          {/* OWNER-ONLY CONTROLS */}
-          {isThisOwner && (
-            <div style={{ marginLeft: "auto", display: "flex", gap: ".6rem" }}>
-              {isRented ? (
-                <button
-                  className="btn-action"
-                  onClick={handleMarkAvailable}
-                  style={{
-                    background: "#e8f5e9", color: "#2e7d32", border: "1.5px solid #a5d6a7",
-                    borderRadius: 8, padding: ".45rem 1rem", fontWeight: 600, fontSize: ".82rem", cursor: "pointer"
-                  }}
-                >
-                  ✅ Mark as Available
-                </button>
-              ) : (
-                <button
-                  onClick={handleMarkRented}
-                  style={{
-                    background: "#fce4ec", color: "#c62828", border: "1.5px solid #ef9a9a",
-                    borderRadius: 8, padding: ".45rem 1rem", fontWeight: 600, fontSize: ".82rem", cursor: "pointer"
-                  }}
-                >
-                  🔴 Mark as Rented
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* ADMIN VIEW CONTROLS */}
-          {isAdmin && (
-            <div style={{ marginLeft: "auto", display: "flex", gap: ".6rem", alignItems: "center" }}>
-              <span style={{ fontSize: ".75rem", color: "var(--gray-text)", background: "#f3e5f5", padding: ".2rem .6rem", borderRadius: 6, border: "1px solid #ce93d8" }}>
-                👑 Admin View
-              </span>
+          {/* OWNER / ADMIN CONTROLS */}
+          {(isThisOwner || isAdmin) && (
+            <div style={{ marginLeft: "auto", display: "flex", gap: ".6rem", alignItems: "center", flexWrap: "wrap" }}>
+              {isAdmin && <span className="admin-chip"><MdOutlineAdminPanelSettings /> Admin View</span>}
               <button
-                onClick={() => isRented ? handleMarkAvailable() : handleMarkRented()}
-                style={{
-                  background: isRented ? "#e8f5e9" : "#fce4ec",
-                  color: isRented ? "#2e7d32" : "#c62828",
-                  border: `1.5px solid ${isRented ? "#a5d6a7" : "#ef9a9a"}`,
-                  borderRadius: 8, padding: ".45rem 1rem", fontWeight: 600, fontSize: ".82rem", cursor: "pointer"
-                }}
+                className={`status-btn ${isRented ? "to-available" : "to-rented"}`}
+                onClick={isRented ? handleMarkAvailable : handleMarkRented}
               >
-                {isRented ? "✅ Mark Available" : "🔴 Mark Rented"}
+                {isRented ? <FiCheckCircle /> : <BsCircleFill size={8} />}
+                {isRented ? "Mark as Available" : "Mark as Rented"}
               </button>
             </div>
           )}
@@ -313,31 +280,17 @@ export default function Detail({ go, user, house }) {
 
         {/* RENTED CONFIRMATION DIALOG */}
         {showRentedConfirm && (
-          <div style={{
-            background: "#fff3e0", border: "1.5px solid #ffb74d", borderRadius: 12,
-            padding: "1.1rem 1.25rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap"
-          }}>
-            <div style={{ flex: 1, fontSize: ".875rem", color: "#e65100" }}>
-              <strong>Confirm:</strong> This will mark your property as <strong>Rented</strong>. 
+          <div className="notice warn" style={{ alignItems: "center", flexWrap: "wrap" }}>
+            <FiAlertTriangle />
+            <div style={{ flex: 1 }}>
+              <strong>Confirm:</strong> This will mark your property as <strong>Rented</strong>.
               Students browsing the dashboard will see it as unavailable.
             </div>
             <div style={{ display: "flex", gap: ".6rem" }}>
-              <button
-                onClick={confirmMarkRented}
-                style={{
-                  background: "#c62828", color: "#fff", border: "none", borderRadius: 8,
-                  padding: ".45rem 1rem", fontWeight: 700, fontSize: ".82rem", cursor: "pointer"
-                }}
-              >
+              <button className="status-btn" style={{ background: "var(--red)", color: "#fff", borderColor: "var(--red)" }} onClick={confirmMarkRented}>
                 Yes, Mark Rented
               </button>
-              <button
-                onClick={() => setShowRentedConfirm(false)}
-                style={{
-                  background: "#eee", color: "#333", border: "none", borderRadius: 8,
-                  padding: ".45rem 1rem", fontWeight: 600, fontSize: ".82rem", cursor: "pointer"
-                }}
-              >
+              <button className="status-btn" style={{ background: "var(--gray-bg)", color: "var(--dark)", borderColor: "var(--gray-mid)" }} onClick={() => setShowRentedConfirm(false)}>
                 Cancel
               </button>
             </div>
@@ -346,17 +299,14 @@ export default function Detail({ go, user, house }) {
 
         {/* Rented banner for students */}
         {isRented && isStudent && (
-          <div style={{
-            background: "#fce4ec", border: "1.5px solid #ef9a9a", borderRadius: 10,
-            padding: ".85rem 1.1rem", marginBottom: "1rem", fontSize: ".875rem", color: "#b71c1c",
-            display: "flex", alignItems: "center", gap: ".6rem"
-          }}>
-            🔴 <strong>This property is currently rented out.</strong> You can still view details and save for future reference.
+          <div className="notice error">
+            <BsCircleFill size={8} style={{ marginTop: 7 }} />
+            <span><strong>This property is currently rented out.</strong> You can still view details and save for future reference.</span>
           </div>
         )}
 
         {/* GALLERY */}
-        <div className="detail-gallery" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', height: '400px', marginBottom: '2rem' }}>
+        <div className="detail-gallery" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', height: '600px', marginBottom: '2rem' }}>
           <div className="gallery-main" style={{ width: '100%', height: '100%' }}>
             <img
               src={targetImages[0] || "/images/placeholder.jpg"}
@@ -366,7 +316,7 @@ export default function Detail({ go, user, house }) {
           </div>
           <div className="gallery-sub" style={{ display: 'grid', gridTemplateRows: '1fr 1fr', gap: '10px', height: '100%' }}>
             <img src={targetImages[1] || "/images/placeholder.jpg"} alt="Interior View 2" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
-            <img src={targetImages[2] || "/images/placeholder.jpg"} alt="Interior View 3" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+            {/* <img src={targetImages[2] || "/images/placeholder.jpg"} alt="Interior View 3" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /> */}
           </div>
         </div>
 
@@ -387,6 +337,7 @@ export default function Detail({ go, user, house }) {
               <div className="features-grid">
                 {facilities.map((f, i) => (
                   <div className="feature-item" key={i}>
+                    <div className="feature-icon">{f.icon}</div>
                     <div>
                       <div className="feature-label">{f.label}</div>
                       <div className="feature-sub">{f.sub}</div>
@@ -503,9 +454,7 @@ export default function Detail({ go, user, house }) {
                   </div>
 
                   {reviewSubmitError && (
-                    <div style={{ color: "#c62828", fontSize: ".82rem", marginBottom: ".6rem" }}>
-                      ⚠️ {reviewSubmitError}
-                    </div>
+                    <div className="notice error"><FiAlertTriangle /> <span>{reviewSubmitError}</span></div>
                   )}
 
                   <button className="btn-post-review" onClick={submitReview} disabled={submittingReview}>
@@ -535,16 +484,35 @@ export default function Detail({ go, user, house }) {
               {isStudent && (
                 <>
                   <p className="contact-note">Contact the owner directly via phone or WhatsApp.</p>
-                  <button
-                    className="btn-contact"
-                    disabled={isRented}
-                    style={isRented ? { opacity: 0.5, cursor: "not-allowed" } : {}}
-                    onClick={() =>
-                      !isRented && alert(`📞 Owner: ${displayOwnerName}\nPhone: ${displayContactPhone}\n\nPlease call or WhatsApp the owner directly.`)
-                    }
-                  >
-                    {isRented ? "🔴 Currently Rented" : "📞 Contact Home Owner"}
-                  </button>
+                  <div style={{
+                          display: "flex",
+                          gap: "12px",
+                          width: "100%",
+                          marginTop: "0.75rem"
+                      }}><button
+                          className="btn-primaryV2"
+                          disabled={isRented}
+                          style={{
+                              opacity: isRented ? 0.5 : 1,
+                              cursor: isRented ? "not-allowed" : "pointer"
+                          }}
+                          onClick={() =>
+                              !isRented &&
+                              alert(
+                                  `Owner: ${displayOwnerName}\nPhone: ${displayContactPhone}\n\nPlease call or WhatsApp the owner directly.`
+                              )
+                          }
+                      >
+                          {isRented ? (
+                              <><BsCircleFill size={8} /> Currently Rented</>
+                          ) : (
+                              <>
+                                  <IoCall style={{ fontSize: "20px" }} />
+                                  Contact Owner
+                              </>
+                          )}
+                      </button>
+                  </div>
 
                   {/* ─── CHAT FEATURE (Talha) ───
                       In-app alternative to the phone number above: opens a
@@ -554,32 +522,44 @@ export default function Detail({ go, user, house }) {
                       here. */}
                   <MessageOwnerButton go={go} user={user} house={house} />
                   {/* ─── END CHAT FEATURE ─── */}
-
+{/* need to look for it and waiting for the decision */}
                   <div className="contact-actions">
-                    <button className="btn-action" onClick={() => alert("Share link copied! (demo)")}>🔗 Share</button>
-                    <button className="btn-action" onClick={() => alert("Saved to favourites! (demo)")}>❤️ Save</button>
+                    <button className="btn-action" onClick={() => alert("Share link copied! (demo)")}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                      <FiShare2 style={{ fontSize: "18px", color: "var(--red)" }} /> <span>Share</span>
+                    </button>
+                   <button className="btn-action"  onClick={() => alert("Saved to favourites! (demo)")}
+                      style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          cursor: "pointer"
+                      }}><CiSaveDown2
+                          style={{
+                              fontSize: "20px",
+                              color: "var(--red)"
+                          }}
+                      />
+                    <span>Save</span></button>
                   </div>
                 </>
               )}
 
               {isThisOwner && (
-                <div style={{
-                  marginTop: "1rem", background: "#e3f2fd", borderRadius: 10,
-                  padding: ".85rem 1rem", fontSize: ".82rem", color: "#1565c0", lineHeight: 1.55
-                }}>
-                  🏠 <strong>Your Property</strong><br />
+                <div className="notice info" style={{ marginTop: "1rem" }}>
+                  <FaHouseChimney />
+                  <span><strong>Your Property</strong><br />
                   Use the <em>Mark as Rented / Available</em> button above to update status.
-                  Students will see this change immediately.
+                  Students will see this change immediately.</span>
                 </div>
               )}
 
               {isAdmin && (
-                <div style={{
-                  marginTop: "1rem", background: "#f3e5f5", borderRadius: 10,
-                  padding: ".85rem 1rem", fontSize: ".82rem", color: "#6a1b9a", lineHeight: 1.55
-                }}>
-                  👑 <strong>Admin View</strong><br />
-                  You can toggle this property's availability from the controls above.
+                <div className="notice info" style={{ marginTop: "1rem" }}>
+                  <MdOutlineAdminPanelSettings />
+                  <span><strong>Admin View</strong><br />
+                  You can toggle this property's availability from the controls above.</span>
                 </div>
               )}
             </div>

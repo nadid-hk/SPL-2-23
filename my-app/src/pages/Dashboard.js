@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import Navbar from "../components/Navbar";
 import SearchMap from "../components/SearchMap";
 import { API_BASE } from "../config";
+import { FiAlertTriangle, FiUser, FiZap, FiMapPin, FiPlus } from "react-icons/fi";
+import { FaBangladeshiTakaSign, FaPersonWalking } from "react-icons/fa6";
+import { BsCircleFill } from "react-icons/bs";
 
 export default function Dashboard({ go, user }) {
   const handleProfileClick = () => go("profile");
@@ -12,14 +15,21 @@ export default function Dashboard({ go, user }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [activeId, setActiveId] = useState(null);
 
+  // Re-run when the logged-in user changes (e.g. right after signup/login)
+  const userId = user?._id || user?.id;
+
   useEffect(() => {
+    // Abort the request if the user changes or the page unmounts, so a slow
+    // response from a previous session can never overwrite the new one.
+    const controller = new AbortController();
+
     const fetchApprovedPosts = async () => {
       setLoading(true);
       setErrorMessage("");
       try {
-        const res = await fetch(`${API_BASE}/posts/approved`);
+        const res = await fetch(`${API_BASE}/posts/approved`, { signal: controller.signal });
         const result = await res.json();
-        if (res.ok && result.success) {// 🐛 FIX: /api/posts/approved now returns { posts, iutGate }
+        if (res.ok && result.success) {//  FIX: /api/posts/approved now returns { posts, iutGate }
           // instead of a bare array (see post.controller.js) so the map
           // card can place the gate pin without hardcoding coordinates on
           // the frontend. Previously this did `setPosts(result.data || [])`
@@ -30,13 +40,15 @@ export default function Dashboard({ go, user }) {
           throw new Error(result.message || "Could not load listings.");
         }
       } catch (err) {
+        if (err.name === "AbortError") return;
         setErrorMessage(err.message);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
     fetchApprovedPosts();
-  }, []);
+    return () => controller.abort();
+  }, [userId]);
 
   // ── NEW: map pins built straight from Post data (not HomeRegister) —
   // this is the fix for "the map should reflect posts, not home
@@ -90,13 +102,13 @@ export default function Dashboard({ go, user }) {
         {/* WELCOME HERO */}
         <div className="welcome-hero">
           <span className="eyebrow">Welcome Back</span>
-          <h1>Hello, <span>{user?.name || "User"}!</span></h1>
+          <h1>Hello, <span>{user?.name || user?.fullName || user?.email?.split("@")[0] || "User"}!</span></h1>
           <p>Discover your next home near IUT. Curated listings just for you.</p>
         </div>
 
         {errorMessage && (
-          <div style={{ background: "#ffebee", color: "#c62828", padding: "1rem", borderRadius: 8, margin: "1.5rem 0", fontSize: "0.9rem" }}>
-            ⚠️ {errorMessage}
+          <div className="notice error" style={{ margin: "1.5rem 0" }}>
+            <FiAlertTriangle /> <span>{errorMessage}</span>
           </div>
         )}
 
@@ -127,8 +139,8 @@ export default function Dashboard({ go, user }) {
             <div className="section-title">Listing Of Houses</div>
             <div className="section-bar" />
           </div>
-          <button className="btn-primary" style={{ padding: ".6rem 1.2rem", fontSize: ".85rem" }} onClick={() => go("post")}>
-            + Post a House
+          <button className="btn-primary" style={{ padding: ".6rem 1.2rem", fontSize: ".85rem", display: "inline-flex", alignItems: "center", gap: ".4rem" }} onClick={() => go("post")}>
+            <FiPlus /> Post a House
           </button>
         </div>
 
@@ -175,6 +187,22 @@ export default function Dashboard({ go, user }) {
   );
 }
 
+function StatusBadge({ isRented, style }) {
+  return (
+    <span
+      className={`prop-status-badge ${isRented ? "rented" : "available"}`}
+      style={{
+        position: "absolute", top: 10, right: 10,
+        display: "inline-flex", alignItems: "center", gap: ".35rem",
+        fontSize: ".72rem", fontWeight: 700, padding: ".25rem .7rem", borderRadius: 20,
+        ...style,
+      }}
+    >
+      <BsCircleFill size={7} /> {isRented ? "Rented" : "Available"}
+    </span>
+  );
+}
+
 function EmptyState({ msg }) {
   return (
     <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--gray-text)" }}>
@@ -205,25 +233,14 @@ function HouseCard({ post, onClick }) {
           <div style={{ width: '100%', height: '100%', background: 'var(--gray-bg)' }} />
         )}
 
-        <span
-          className={`prop-status-badge ${isRented ? "rented" : "available"}`}
-          style={{
-            position: 'absolute', top: 10, right: 10,
-            fontSize: '.72rem', fontWeight: 700, padding: '.25rem .7rem', borderRadius: 20,
-            background: isRented ? '#fce4ec' : '#e8f5e9',
-            color: isRented ? '#c62828' : '#2e7d32',
-            border: `1px solid ${isRented ? '#ef9a9a' : '#a5d6a7'}`
-          }}
-        >
-          {isRented ? '🔴 Rented' : '🟢 Available'}
-        </span>
+        <StatusBadge isRented={isRented} />
       </div>
 
       <div className="prop-card-body">
         <div className="prop-card-name">{houseName}</div>
         <div className="prop-meta">
-          <div className="prop-meta-row"><span></span> ৳{post.monthlyRent?.toLocaleString()} / month</div>
-          <div className="prop-meta-row"><span></span> {post.fullAddress}</div>
+          <div className="prop-meta-row"><FaBangladeshiTakaSign /> ৳{post.monthlyRent?.toLocaleString()} / month</div>
+          <div className="prop-meta-row"><FiMapPin /> {post.fullAddress}</div>
         </div>
         <button className="btn-detail">Get Details</button>
       </div>
@@ -264,27 +281,16 @@ function PostCard({ post, go, active, onHover, onHoverEnd }) {
           <div style={{ width: '100%', height: '100%', background: 'var(--gray-bg)' }} />
         )}
 
-        <span
-          className={`prop-status-badge ${isRented ? "rented" : "available"}`}
-          style={{
-            position: 'absolute', top: 10, right: 10,
-            fontSize: '.72rem', fontWeight: 700, padding: '.25rem .7rem', borderRadius: 20,
-            background: isRented ? '#fce4ec' : '#e8f5e9',
-            color: isRented ? '#c62828' : '#2e7d32',
-            border: `1px solid ${isRented ? '#ef9a9a' : '#a5d6a7'}`
-          }}
-        >
-          {isRented ? '🔴 Rented' : '🟢 Available'}
-        </span>
+        <StatusBadge isRented={isRented} />
       </div>
       <div className="prop-card-body">
         <div className="prop-card-name">{houseName}</div>
         <div className="prop-meta">
-          <div className="prop-meta-row"><span></span> ৳{post.monthlyRent?.toLocaleString()} / month</div>
-          <div className="prop-meta-row"><span></span> Posted by: {post.ownerName}</div>
-          <div className="prop-meta-row"><span></span> {has24_7 ? "24/7 Electricity" : "No 24/7 backup"}</div>
+          <div className="prop-meta-row"><FaBangladeshiTakaSign /> ৳{post.monthlyRent?.toLocaleString()} / month</div>
+          <div className="prop-meta-row"><FiUser /> Posted by: {post.ownerName}</div>
+          <div className="prop-meta-row"><FiZap /> {has24_7 ? "24/7 Electricity" : "No 24/7 backup"}</div>
           {distanceLabel && (
-            <div className="prop-meta-row"><span></span> 🚶 {distanceLabel}</div>
+            <div className="prop-meta-row"><FaPersonWalking /> {distanceLabel}</div>
           )}
         </div>
         {/* FIX: this used to just alert() a few fields instead of opening

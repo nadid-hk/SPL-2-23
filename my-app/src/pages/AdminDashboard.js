@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import Navbar from "../components/Navbar";
 import { API_BASE } from "../config";
+import {
+  FiFileText, FiUserCheck, FiHome, FiCheck, FiX, FiTrash2,
+  FiChevronDown, FiSearch, FiAlertCircle, FiInbox, FiUser,
+  FiPhone, FiCalendar, FiCreditCard, FiUsers,
+} from "react-icons/fi";
+import "./AdminDashboard.css"; // keep AFTER App.css / Darkmode.css
+
+const fmtDate = d => new Date(d).toLocaleDateString();
 
 export default function AdminDashboard({ go, user }) {
   const [activeTab, setActiveTab]       = useState("overview");
@@ -21,19 +29,6 @@ export default function AdminDashboard({ go, user }) {
 
   const [expandedPost, setExpandedPost] = useState(null);
   const [expandedReg,  setExpandedReg]  = useState(null);
-
-  // App-level simulated notifications state (local toast list — actual
-  // persisted notifications live in the Notification collection and are
-  // fetched per-user from /api/notifications/:userId elsewhere in the app)
-  const [notifications, setNotifications] = useState([]);
-
-  const addNotification = (notif) => {
-    setNotifications(prev => [notif, ...prev]);
-  };
-
-  const clearNotification = (indexToClear) => {
-    setNotifications(prev => prev.filter((_, idx) => idx !== indexToClear));
-  };
 
   // Temporary placeholder admin ID until real auth wiring is in place.
   const adminId = user?.id || "65f1abc234def56789012345";
@@ -126,15 +121,6 @@ export default function AdminDashboard({ go, user }) {
       const result = await res.json();
       if (!res.ok || !result.success) throw new Error(result.message || "Review failed");
 
-      const post = pendingPosts.find(p => p._id === id);
-      addNotification({
-        type: decision === "approved" ? "success" : "reject",
-        houseName: post?.registeredHouse?.housePropertyName || "This listing",
-        message: decision === "approved"
-          ? "The listing was approved and is now live."
-          : `Rejected.${reason ? ` Reason: "${reason}"` : ""}`,
-        time: "Just Now"
-      });
 
       setPendingPosts(prev => prev.filter(p => p._id !== id));
       setExpandedPost(null);
@@ -163,8 +149,8 @@ export default function AdminDashboard({ go, user }) {
 
       const reg = pendingRegs.find(r => r._id === id);
       alert(decision === "approved"
-        ? `✅ Registration confirmed!\n${reg?.ownerFullName || "The owner"} can now log in as a Home Owner.`
-        : `❌ Registration rejected.${reason ? `\nReason: ${reason}` : ""}`
+        ? `Registration confirmed!\n${reg?.ownerFullName || "The owner"} can now log in as a Home Owner.`
+        : `Registration rejected.${reason ? `\nReason: ${reason}` : ""}`
       );
 
       setPendingRegs(prev => prev.filter(r => r._id !== id));
@@ -204,14 +190,6 @@ export default function AdminDashboard({ go, user }) {
       const result = await res.json();
       if (!res.ok || !result.success) throw new Error(result.message || "Deletion failed");
 
-      addNotification({
-        type: "reject",
-        houseName: targetUser.name,
-        message: isExpiredRank
-          ? "Expired rank-based account removed."
-          : `Account removed for misconduct.${reason ? ` Reason: "${reason}"` : ""}`,
-        time: "Just Now"
-      });
 
       setUsers(prev => prev.filter(u => u._id !== targetUser._id));
       setExpiredRankUsers(prev => prev.filter(u => u._id !== targetUser._id));
@@ -229,92 +207,76 @@ export default function AdminDashboard({ go, user }) {
   });
 
   const tabs = [
-    { id: "overview", label: " Overview"         },
-    { id: "posts",    label: ` Posts${pendingPosts.length ? ` (${pendingPosts.length})` : ""}` },
-    { id: "regs",     label: ` Registrations${pendingRegs.length ? ` (${pendingRegs.length})` : ""}` },
-    { id: "listings", label: " All Listings"      },
-    { id: "users",    label: ` Users${expiredRankUsers.length ? ` (${expiredRankUsers.length} expired)` : ""}` },
+    { id: "overview", label: "Overview" },
+    { id: "posts",    label: "Posts",         count: pendingPosts.length },
+    { id: "regs",     label: "Registrations", count: pendingRegs.length },
+    { id: "listings", label: "All listings" },
+    { id: "users",    label: "Users",         count: expiredRankUsers.length, hint: "expired accounts" },
+    { id: "notifications", label: "Notifications" },
+  ];
+
+  const stats = [
+    { label: "Pending posts",         value: pendingPosts.length, tone: "warn",  icon: <FiFileText />,  tab: "posts"    },
+    { label: "Pending registrations", value: pendingRegs.length,  tone: "brand", icon: <FiUserCheck />, tab: "regs"     },
+    { label: "Live listings",         value: listings.length,     tone: "ok",    icon: <FiHome />,      tab: "listings" },
   ];
 
   return (
-    <div className="page">
-      <Navbar 
-        page="adminDashboard" 
-        go={go} 
-        user={user} 
-        notifications={notifications}
-        clearNotification={clearNotification}
+    <div className="page adm">
+      <Navbar
+        page="adminDashboard"
+        go={go}
+        user={user}
       />
       <div className="dashboard-content">
 
         {/* ── ADMIN HERO ── */}
-        <div className="welcome-hero" style={{
-          background: "linear-gradient(135deg, #1a237e 0%, #4a148c 100%)",
-          color: "#fff",
-          borderRadius: 16,
-          padding: "2rem 2.5rem",
-          marginBottom: "2rem"
-        }}>
-          <span className="eyebrow" style={{ color: "rgba(255,255,255,.7)" }}>Admin Control Panel</span>
-          <h1 style={{ color: "#fff" }}>Welcome, <span style={{ color: "#ce93d8" }}>{user?.name || "Admin"}</span></h1>
-          <p style={{ color: "rgba(255,255,255,.75)", marginTop: ".4rem" }}>
-            Monitor the platform, approve listings and confirm new home owner accounts.
-          </p>
-        </div>
+        <header className="adm-hero">
+          <span className="adm-hero-tag">Admin control panel</span>
+          <h1>Welcome back, Admin</h1>
+          <p>Monitor the platform, approve listings and confirm new home owner accounts.</p>
+        </header>
 
         {loadError && (
-          <div style={{ background: "#ffebee", color: "#c62828", padding: "1rem", borderRadius: 8, marginBottom: "1.5rem", fontSize: "0.9rem" }}>
-            ⚠️ {loadError}
+          <div className="adm-alert" role="alert">
+            <FiAlertCircle />
+            <span>{loadError}</span>
           </div>
         )}
 
         {/* ── STAT CARDS ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
-          {[
-            { label: "Pending Posts",         value: pendingPosts.length, color: "#e65100", bg: "#fff3e0", icon: "", tab: "posts"    },
-            { label: "Pending Registrations", value: pendingRegs.length,  color: "#1a237e", bg: "#e8eaf6", icon: "", tab: "regs"     },
-            { label: "Live Listings",         value: listings.length,     color: "#1b5e20", bg: "#e8f5e9", icon: "", tab: "listings" },
-          ].map(stat => (
-            <div
+        <div className="adm-stats">
+          {stats.map(stat => (
+            <button
+              type="button"
               key={stat.label}
+              className="adm-stat"
               onClick={() => setActiveTab(stat.tab)}
-              style={{
-                background: stat.bg,
-                borderRadius: 14,
-                padding: "1.2rem 1rem",
-                textAlign: "center",
-                cursor: "pointer",
-                transition: "transform .15s",
-                border: `1.5px solid ${stat.bg}`
-              }}
             >
-              <div style={{ fontSize: "1.6rem" }}>{stat.icon}</div>
-              <div style={{ fontSize: "2rem", fontWeight: 800, color: stat.color, lineHeight: 1.2 }}>{stat.value}</div>
-              <div style={{ fontSize: ".75rem", color: stat.color, fontWeight: 600, marginTop: ".25rem" }}>{stat.label}</div>
-            </div>
+              <span className={`adm-stat-icon ${stat.tone}`}>{stat.icon}</span>
+              <span>
+                <div className="adm-stat-value">{stat.value}</div>
+                <div className="adm-stat-label">{stat.label}</div>
+              </span>
+            </button>
           ))}
         </div>
 
         {/* ── TABS ── */}
-        <div style={{ display: "flex", borderBottom: "2px solid #e0e0e0", marginBottom: "1.5rem", gap: 0, overflowX: "auto" }}>
+        <div className="adm-tabs" role="tablist">
           {tabs.map(tab => (
             <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
               key={tab.id}
+              className={`adm-tab${activeTab === tab.id ? " active" : ""}`}
               onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: ".75rem 1.25rem",
-                background: "none",
-                border: "none",
-                borderBottom: activeTab === tab.id ? "3px solid #4a148c" : "3px solid transparent",
-                fontWeight: activeTab === tab.id ? 700 : 500,
-                color: activeTab === tab.id ? "#4a148c" : "var(--gray-text)",
-                cursor: "pointer",
-                fontSize: ".875rem",
-                whiteSpace: "nowrap",
-                transition: "all .2s"
-              }}
             >
               {tab.label}
+              {tab.count > 0 && (
+                <span className="adm-tab-count" title={tab.hint}>{tab.count}</span>
+              )}
             </button>
           ))}
         </div>
@@ -322,306 +284,465 @@ export default function AdminDashboard({ go, user }) {
         {/* ── OVERVIEW ── */}
         {activeTab === "overview" && (
           <div>
-            <SectionTitle>Quick Actions</SectionTitle>
-            <div style={{ display: "flex", gap: ".75rem", flexWrap: "wrap", marginBottom: "2rem" }}>
-              <ActionBtn color="#e65100" onClick={() => setActiveTab("posts")}>
-                 Review {pendingPosts.length} Pending Post{pendingPosts.length !== 1 ? "s" : ""}
-              </ActionBtn>
-              <ActionBtn color="#1a237e" onClick={() => setActiveTab("regs")}>
-                 Review {pendingRegs.length} Registration{pendingRegs.length !== 1 ? "s" : ""}
-              </ActionBtn>
-              <ActionBtn color="#2e7d32" onClick={() => setActiveTab("listings")}>
-                 Manage All Listings
-              </ActionBtn>
-            </div>
+            <section className="adm-section">
+              <SectionTitle>Quick actions</SectionTitle>
+              <div className="adm-quick">
+                <Btn variant="primary" size="lg" onClick={() => setActiveTab("posts")}>
+                  <FiFileText /> Review {pendingPosts.length} pending post{pendingPosts.length !== 1 ? "s" : ""}
+                </Btn>
+                <Btn variant="ghost" size="lg" onClick={() => setActiveTab("regs")}>
+                  <FiUserCheck /> Review {pendingRegs.length} registration{pendingRegs.length !== 1 ? "s" : ""}
+                </Btn>
+                <Btn variant="ghost" size="lg" onClick={() => setActiveTab("listings")}>
+                  <FiHome /> Manage all listings
+                </Btn>
+              </div>
+            </section>
 
-            <SectionTitle>Recent Pending Posts</SectionTitle>
-            {loadingPosts ? (
-              <EmptyState icon="" msg="Loading pending posts..." />
-            ) : pendingPosts.length === 0 ? (
-              <EmptyState icon="" msg="No pending posts." />
-            ) : (
-              pendingPosts.slice(0, 2).map(post => (
-                <PendingRow key={post._id}
-                  title={` ${post.registeredHouse?.housePropertyName || "Unnamed Property"}`}
-                  sub={`${post.ownerName} · ৳${post.monthlyRent.toLocaleString()}/mo · ${new Date(post.createdAt).toLocaleDateString()}`}
-                  onApprove={() => approvePost(post._id)}
-                  onReject={() => rejectPost(post._id)}
-                />
-              ))
-            )}
+            <section className="adm-section">
+              <SectionTitle>Recent pending posts</SectionTitle>
+              {loadingPosts ? (
+                <Loading msg="Loading pending posts" />
+              ) : pendingPosts.length === 0 ? (
+                <EmptyState icon={<FiInbox />} msg="No pending posts" />
+              ) : (
+                pendingPosts.slice(0, 2).map(post => (
+                  <PendingRow key={post._id}
+                    title={post.registeredHouse?.housePropertyName || "Unnamed property"}
+                    meta={[
+                      { icon: <FiUser />,       text: post.ownerName },
+                      { icon: <FiCreditCard />, text: `৳${post.monthlyRent.toLocaleString()}/mo` },
+                      { icon: <FiCalendar />,   text: fmtDate(post.createdAt) },
+                    ]}
+                    onApprove={() => approvePost(post._id)}
+                    onReject={() => rejectPost(post._id)}
+                  />
+                ))
+              )}
+            </section>
 
-            <SectionTitle style={{ marginTop: "1.5rem" }}>Recent Pending Registrations</SectionTitle>
-            {loadingRegs ? (
-              <EmptyState icon="" msg="Loading pending registrations..." />
-            ) : pendingRegs.length === 0 ? (
-              <EmptyState icon="" msg="No pending registrations." />
-            ) : (
-              pendingRegs.slice(0, 2).map(reg => (
-                <PendingRow key={reg._id}
-                  title={`👤 ${reg.ownerFullName}`}
-                  sub={`${reg.housePropertyName} · ${reg.phoneNumber} · ${new Date(reg.createdAt).toLocaleDateString()}`}
-                  onApprove={() => approveReg(reg._id)}
-                  onReject={() => rejectReg(reg._id)}
-                  approveLabel="✅ Confirm"
-                  approveColor="#1a237e"
-                />
-              ))
-            )}
+            <section className="adm-section">
+              <SectionTitle>Recent pending registrations</SectionTitle>
+              {loadingRegs ? (
+                <Loading msg="Loading pending registrations" />
+              ) : pendingRegs.length === 0 ? (
+                <EmptyState icon={<FiInbox />} msg="No pending registrations" />
+              ) : (
+                pendingRegs.slice(0, 2).map(reg => (
+                  <PendingRow key={reg._id}
+                    title={reg.ownerFullName}
+                    meta={[
+                      { icon: <FiHome />,     text: reg.housePropertyName },
+                      { icon: <FiPhone />,    text: reg.phoneNumber },
+                      { icon: <FiCalendar />, text: fmtDate(reg.createdAt) },
+                    ]}
+                    onApprove={() => approveReg(reg._id)}
+                    onReject={() => rejectReg(reg._id)}
+                    approveLabel="Confirm"
+                  />
+                ))
+              )}
+            </section>
           </div>
         )}
 
         {/* ── PENDING POSTS ── */}
         {activeTab === "posts" && (
-          <div>
-            <SectionTitle>Pending Post Approvals</SectionTitle>
+          <section className="adm-section">
+            <SectionTitle>Pending post approvals</SectionTitle>
             {loadingPosts ? (
-              <EmptyState icon="" msg="Loading pending posts..." />
+              <Loading msg="Loading pending posts" />
             ) : pendingPosts.length === 0 ? (
-              <EmptyState icon="" msg="All caught up! No pending posts." />
+              <EmptyState icon={<FiCheck />} msg="All caught up" sub="There are no pending posts to review." />
             ) : (
               pendingPosts.map(post => (
-                <div key={post._id} style={{
-                  border: "1.5px solid #e0e0e0", borderRadius: 12,
-                  marginBottom: ".75rem", background: "#fff", overflow: "hidden"
-                }}>
-                  <div
-                    onClick={() => setExpandedPost(expandedPost === post._id ? null : post._id)}
-                    style={{ padding: "1rem 1.25rem", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: ".95rem" }}> {post.registeredHouse?.housePropertyName || "Unnamed Property"}</div>
-                      <div style={{ fontSize: ".8rem", color: "var(--gray-text)", marginTop: ".2rem" }}>
-                        👤 {post.ownerName} &nbsp;·&nbsp;  ৳{post.monthlyRent.toLocaleString()}/mo &nbsp;·&nbsp;  {new Date(post.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <span style={{ fontSize: ".8rem", color: "#7c3aed" }}>{expandedPost === post._id ? "▲ collapse" : "▼ details"}</span>
-                  </div>
-
-                  {expandedPost === post._id && (
-                    <div style={{ padding: "1rem 1.25rem", background: "#f3e5f5", borderTop: "1px solid #e0e0e0" }}>
-                      <InfoRow label=" Property"  value={post.registeredHouse?.housePropertyName || "—"} />
-                      <InfoRow label=" Owner"     value={post.ownerName} />
-                      <InfoRow label=" Phone"     value={post.contactPhone} />
-                      <InfoRow label=" Rent"      value={`৳${post.monthlyRent.toLocaleString()}/mo`} />
-                      <InfoRow label=" Address"   value={post.fullAddress} />
-                      <InfoRow label=" Gate Closes" value={post.gateClosedTime} />
-                      <InfoRow label=" Submitted" value={new Date(post.createdAt).toLocaleString()} />
-                      {post.photos?.length > 0 && (
-                        <div style={{ display: "flex", gap: ".5rem", margin: ".6rem 0" }}>
-                          {post.photos.map((p, i) => (
-                            <img key={i} src={p.url} alt={`Listing photo ${i + 1}`} style={{ width: 90, height: 70, objectFit: "cover", borderRadius: 8 }} />
-                          ))}
-                        </div>
-                      )}
-                      <div style={{ display: "flex", gap: ".6rem", marginTop: "1rem" }}>
-                        <ApproveBtn onClick={() => approvePost(post._id)}>✅ Approve Post</ApproveBtn>
-                        <RejectBtn  onClick={() => rejectPost(post._id)}>❌ Reject</RejectBtn>
-                      </div>
+                <Accordion
+                  key={post._id}
+                  open={expandedPost === post._id}
+                  onToggle={() => setExpandedPost(expandedPost === post._id ? null : post._id)}
+                  title={post.registeredHouse?.housePropertyName || "Unnamed property"}
+                  meta={[
+                    { icon: <FiUser />,       text: post.ownerName },
+                    { icon: <FiCreditCard />, text: `৳${post.monthlyRent.toLocaleString()}/mo` },
+                    { icon: <FiCalendar />,   text: fmtDate(post.createdAt) },
+                  ]}
+                >
+                  <InfoRow label="Property"    value={post.registeredHouse?.housePropertyName} />
+                  <InfoRow label="Owner"       value={post.ownerName} />
+                  <InfoRow label="Phone"       value={post.contactPhone} />
+                  <InfoRow label="Rent"        value={`৳${post.monthlyRent.toLocaleString()}/mo`} />
+                  <InfoRow label="Address"     value={post.fullAddress} />
+                  <InfoRow label="Gate closes" value={post.gateClosedTime} />
+                  <InfoRow label="Submitted"   value={new Date(post.createdAt).toLocaleString()} />
+                  {post.photos?.length > 0 && (
+                    <div className="adm-photos">
+                      {post.photos.map((p, i) => (
+                        <img key={i} src={p.url} alt={`Listing photo ${i + 1}`} />
+                      ))}
                     </div>
                   )}
-                </div>
+                  <div className="adm-actions">
+                    <Btn variant="approve" onClick={() => approvePost(post._id)}><FiCheck /> Approve post</Btn>
+                    <Btn variant="reject"  onClick={() => rejectPost(post._id)}><FiX /> Reject</Btn>
+                  </div>
+                </Accordion>
               ))
             )}
-          </div>
+          </section>
         )}
 
         {/* ── PENDING REGISTRATIONS ── */}
         {activeTab === "regs" && (
-          <div>
-            <SectionTitle>Pending Home Owner Registrations</SectionTitle>
+          <section className="adm-section">
+            <SectionTitle>Pending home owner registrations</SectionTitle>
             {loadingRegs ? (
-              <EmptyState icon="" msg="Loading pending registrations..." />
+              <Loading msg="Loading pending registrations" />
             ) : pendingRegs.length === 0 ? (
-              <EmptyState icon="" msg="No pending registrations." />
+              <EmptyState icon={<FiCheck />} msg="All caught up" sub="There are no pending registrations to review." />
             ) : (
               pendingRegs.map(reg => (
-                <div key={reg._id} style={{
-                  border: "1.5px solid #c5cae9", borderRadius: 12,
-                  marginBottom: ".75rem", background: "#fff", overflow: "hidden"
-                }}>
-                  <div
-                    onClick={() => setExpandedReg(expandedReg === reg._id ? null : reg._id)}
-                    style={{ padding: "1rem 1.25rem", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: ".95rem" }}> {reg.ownerFullName}</div>
-                      <div style={{ fontSize: ".8rem", color: "var(--gray-text)", marginTop: ".2rem" }}>
-                         {reg.phoneNumber} &nbsp;·&nbsp;  {reg.housePropertyName} &nbsp;·&nbsp;  {new Date(reg.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <span style={{ fontSize: ".8rem", color: "#7c3aed" }}>{expandedReg === reg._id ? "▲ collapse" : "▼ details"}</span>
+                <Accordion
+                  key={reg._id}
+                  open={expandedReg === reg._id}
+                  onToggle={() => setExpandedReg(expandedReg === reg._id ? null : reg._id)}
+                  title={reg.ownerFullName}
+                  meta={[
+                    { icon: <FiPhone />,    text: reg.phoneNumber },
+                    { icon: <FiHome />,     text: reg.housePropertyName },
+                    { icon: <FiCalendar />, text: fmtDate(reg.createdAt) },
+                  ]}
+                >
+                  <InfoRow label="Owner name" value={reg.ownerFullName} />
+                  <InfoRow label="Phone"      value={reg.phoneNumber} />
+                  <InfoRow label="Property"   value={reg.housePropertyName} />
+                  <InfoRow label="Address"    value={reg.houseAddress} />
+                  <InfoRow label="Map pin"    value={reg.houseMap?.coordinates?.slice().reverse().join(", ")} />
+                  <InfoRow label="Submitted"  value={new Date(reg.createdAt).toLocaleString()} />
+                  <div className="adm-photos">
+                    {reg.housePicture?.url && (
+                      <img src={reg.housePicture.url} alt="House" />
+                    )}
+                    {reg.khatianCertificate?.url && (
+                      <img src={reg.khatianCertificate.url} alt="Khatian certificate" />
+                    )}
                   </div>
-
-                  {expandedReg === reg._id && (
-                    <div style={{ padding: "1rem 1.25rem", background: "#f3e5f5", borderTop: "1px solid #c5cae9" }}>
-                      <InfoRow label=" Owner Name" value={reg.ownerFullName} />
-                      <InfoRow label=" Phone"      value={reg.phoneNumber} />
-                      <InfoRow label=" Property"   value={reg.housePropertyName} />
-                      <InfoRow label=" Address"    value={reg.houseAddress} />
-                      <InfoRow label=" Map Pin"    value={reg.houseMap?.coordinates?.slice().reverse().join(", ")} />
-                      <InfoRow label=" Submitted"  value={new Date(reg.createdAt).toLocaleString()} />
-                      <div style={{ display: "flex", gap: ".5rem", margin: ".6rem 0" }}>
-                        {reg.housePicture?.url && (
-                          <img src={reg.housePicture.url} alt="House" style={{ width: 90, height: 70, objectFit: "cover", borderRadius: 8 }} />
-                        )}
-                        {reg.khatianCertificate?.url && (
-                          <img src={reg.khatianCertificate.url} alt="Khatian Certificate" style={{ width: 90, height: 70, objectFit: "cover", borderRadius: 8 }} />
-                        )}
-                      </div>
-                      <div style={{ display: "flex", gap: ".6rem", marginTop: "1rem" }}>
-                        <ApproveBtn color="#1a237e" onClick={() => approveReg(reg._id)}>✅ Confirm Registration</ApproveBtn>
-                        <RejectBtn onClick={() => rejectReg(reg._id)}>❌ Reject</RejectBtn>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  <div className="adm-actions">
+                    <Btn variant="approve" onClick={() => approveReg(reg._id)}><FiCheck /> Confirm registration</Btn>
+                    <Btn variant="reject"  onClick={() => rejectReg(reg._id)}><FiX /> Reject</Btn>
+                  </div>
+                </Accordion>
               ))
             )}
-          </div>
+          </section>
         )}
 
         {/* ── ALL LISTINGS ── */}
         {activeTab === "listings" && (
-          <div>
-            <SectionTitle>All Live Listings</SectionTitle>
-            <p style={{ fontSize: ".85rem", color: "var(--gray-text)", marginBottom: "1.25rem" }}>
-              These are all currently admin-approved listings.
-            </p>
+          <section className="adm-section">
+            <SectionTitle sub="These are all currently admin-approved listings.">
+              All live listings
+            </SectionTitle>
             {loadingListings ? (
-              <EmptyState icon="" msg="Loading listings..." />
+              <Loading msg="Loading listings" />
             ) : listings.length === 0 ? (
-              <EmptyState icon="" msg="No approved listings yet." />
+              <EmptyState icon={<FiHome />} msg="No approved listings yet" />
             ) : (
               listings.map(listing => (
-                <div key={listing._id} style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  border: "1.5px solid #e0e0e0", borderRadius: 12,
-                  padding: "1rem 1.25rem", marginBottom: ".75rem", background: "#fff",
-                  flexWrap: "wrap", gap: ".75rem"
-                }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: ".95rem" }}> {listing.registeredHouse?.housePropertyName || "Unnamed Property"}</div>
-                    <div style={{ fontSize: ".8rem", color: "var(--gray-text)", marginTop: ".2rem" }}>
-                       {listing.ownerName} &nbsp;·&nbsp;  ৳{listing.monthlyRent.toLocaleString()}/mo
-                    </div>
+                <div key={listing._id} className="adm-row">
+                  <div className="adm-row-main">
+                    <span className="adm-row-title">
+                      {listing.registeredHouse?.housePropertyName || "Unnamed property"}
+                    </span>
+                    <Meta items={[
+                      { icon: <FiUser />,       text: listing.ownerName },
+                      { icon: <FiCreditCard />, text: `৳${listing.monthlyRent.toLocaleString()}/mo` },
+                    ]} />
                   </div>
-                  <span style={{
-                    padding: ".28rem .8rem", borderRadius: 20, fontSize: ".78rem", fontWeight: 700,
-                    background: "#e8f5e9", color: "#2e7d32"
-                  }}>
-                    🟢 Approved
-                  </span>
+                  <span className="adm-pill ok">Approved</span>
                 </div>
               ))
             )}
-          </div>
+          </section>
         )}
 
         {/* ── USERS ── */}
         {activeTab === "users" && (
           <div>
-            <SectionTitle>Expired Rank-Based Accounts</SectionTitle>
-            <p style={{ fontSize: ".85rem", color: "var(--gray-text)", marginBottom: "1rem" }}>
-              Rank-registered accounts can only edit their profile for 6 months after signup.
-              Once that window passes they're listed here for cleanup.
-            </p>
-            {loadingExpired ? (
-              <EmptyState icon="" msg="Checking for expired rank accounts..." />
-            ) : expiredRankUsers.length === 0 ? (
-              <EmptyState icon="" msg="No expired rank-based accounts." />
-            ) : (
-              expiredRankUsers.map(u => (
-                <div key={u._id} style={{
-                  border: "1.5px solid #ffcdd2", borderRadius: 12,
-                  padding: "1rem 1.25rem", marginBottom: ".75rem",
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  flexWrap: "wrap", gap: ".5rem", background: "#fff5f5"
-                }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: ".9rem" }}>{u.name}</div>
-                    <div style={{ fontSize: ".78rem", color: "var(--gray-text)", marginTop: ".2rem" }}>
-                      Rank: {u.rank || "—"} &nbsp;·&nbsp; Deadline passed {new Date(u.profileEditDeadline).toLocaleDateString()}
+            <section className="adm-section">
+              <SectionTitle sub="Rank-registered accounts can only edit their profile for 6 months after signup. Once that window passes they're listed here for cleanup.">
+                Expired rank-based accounts
+              </SectionTitle>
+              {loadingExpired ? (
+                <Loading msg="Checking for expired rank accounts" />
+              ) : expiredRankUsers.length === 0 ? (
+                <EmptyState icon={<FiCheck />} msg="No expired rank-based accounts" />
+              ) : (
+                expiredRankUsers.map(u => (
+                  <div key={u._id} className="adm-row danger">
+                    <div className="adm-row-main">
+                      <span className="adm-row-title">{u.name}</span>
+                      <Meta items={[
+                        { text: `Rank: ${u.rank || "—"}` },
+                        { icon: <FiCalendar />, text: `Deadline passed ${fmtDate(u.profileEditDeadline)}` },
+                      ]} />
+                    </div>
+                    <div className="adm-row-actions">
+                      <Btn variant="reject" onClick={() => deleteUser(u, true)}><FiTrash2 /> Remove account</Btn>
                     </div>
                   </div>
-                  <RejectBtn onClick={() => deleteUser(u, true)}>🗑️ Remove Account</RejectBtn>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </section>
 
-            <SectionTitle style={{ marginTop: "2rem" }}>All Users</SectionTitle>
-            <input
-              type="text"
-              placeholder="Search by name, email or phone…"
-              value={userSearch}
-              onChange={e => setUserSearch(e.target.value)}
-              style={{
-                width: "100%", maxWidth: 360, padding: ".55rem .8rem",
-                border: "1.5px solid #e0e0e0", borderRadius: 8,
-                fontSize: ".85rem", marginBottom: "1.1rem"
-              }}
-            />
-            {loadingUsers ? (
-              <EmptyState icon="" msg="Loading users..." />
-            ) : filteredUsers.length === 0 ? (
-              <EmptyState icon="" msg="No matching users." />
-            ) : (
-              filteredUsers.map(u => (
-                <div key={u._id} style={{
-                  border: "1.5px solid #e0e0e0", borderRadius: 12,
-                  padding: "1rem 1.25rem", marginBottom: ".75rem",
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  flexWrap: "wrap", gap: ".5rem", background: "#fff"
-                }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: ".9rem" }}>{u.name}</div>
-                    <div style={{ fontSize: ".78rem", color: "var(--gray-text)", marginTop: ".2rem" }}>
-                      {u.authMethod === "EmailUser" ? u.email : `Rank: ${u.rank || "—"}`}
-                      {u.phone ? ` · ${u.phone}` : ""} &nbsp;·&nbsp; joined {new Date(u.createdAt).toLocaleDateString()}
+            <section className="adm-section">
+              <SectionTitle>All users</SectionTitle>
+              <label className="adm-search">
+                <FiSearch />
+                <input
+                  type="text"
+                  aria-label="Search users"
+                  placeholder="Search by name, email or phone"
+                  value={userSearch}
+                  onChange={e => setUserSearch(e.target.value)}
+                />
+              </label>
+              {loadingUsers ? (
+                <Loading msg="Loading users" />
+              ) : filteredUsers.length === 0 ? (
+                <EmptyState icon={<FiUsers />} msg="No matching users" />
+              ) : (
+                filteredUsers.map(u => (
+                  <div key={u._id} className="adm-row">
+                    <div className="adm-row-main">
+                      <span className="adm-row-title">{u.name}</span>
+                      <Meta items={[
+                        { text: u.authMethod === "EmailUser" ? u.email : `Rank: ${u.rank || "—"}` },
+                        u.phone && { icon: <FiPhone />, text: u.phone },
+                        { icon: <FiCalendar />, text: `Joined ${fmtDate(u.createdAt)}` },
+                      ]} />
+                    </div>
+                    <div className="adm-row-actions">
+                      <Btn variant="reject" onClick={() => deleteUser(u, false)}><FiTrash2 /> Delete (misconduct)</Btn>
                     </div>
                   </div>
-                  <RejectBtn onClick={() => deleteUser(u, false)}>🗑️ Delete (Misconduct)</RejectBtn>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </section>
           </div>
         )}
+
+        {/* ── NOTIFICATIONS ── */}
+        {activeTab === "notifications" && <AdminNotifications users={users} />}
 
       </div>
 
       <footer className="footer">
         <h4>KHOJ Admin</h4>
         <p>Platform management for KHOJ — IUT student housing.</p>
-        <p style={{ marginTop: ".5rem", fontSize: ".76rem", opacity: 0.6 }}>© 2026 KHOJ. All rights reserved.</p>
+        <p className="adm-footer-note">© 2026 KHOJ. All rights reserved.</p>
       </footer>
     </div>
   );
 }
 
 // ── Small helper components ──
-function SectionTitle({ children, style }) {
+function SectionTitle({ children, sub }) {
   return (
-    <div style={{ fontWeight: 700, fontSize: "1rem", marginBottom: ".85rem", color: "var(--dark)", ...style }}>
-      {children}
-      <div style={{ height: 3, width: 40, background: "#4a148c", borderRadius: 2, marginTop: ".3rem" }} />
+    <div className="adm-section-head">
+      <h2 className="adm-section-title">{children}</h2>
+      {sub && <p className="adm-section-sub">{sub}</p>}
     </div>
   );
 }
 
-function ActionBtn({ children, onClick, color = "#4a148c" }) {
+function Btn({ variant = "ghost", size, onClick, children }) {
   return (
-    <button onClick={onClick} style={{
-      background: color, color: "#fff", border: "none",
-      borderRadius: 10, padding: ".65rem 1.3rem",
-      fontWeight: 700, fontSize: ".85rem", cursor: "pointer"
-    }}>
+    <button
+      type="button"
+      className={`adm-btn adm-btn-${variant}${size === "lg" ? " adm-btn-lg" : ""}`}
+      onClick={onClick}
+    >
       {children}
     </button>
   );
 }
 
-function ApproveBtn({ children, onClick, color = "#2e7d32" }) { return <button onClick={onClick} style={{ background: color, color: "#fff", border: "none", borderRadius: 8, padding: ".45rem 1rem", fontWeight: 700, fontSize: ".82rem", cursor: "pointer" }}>{children}</button>; }
-function RejectBtn({ children, onClick }) { return <button onClick={onClick} style={{ background: "#c62828", color: "#fff", border: "none", borderRadius: 8, padding: ".45rem 1rem", fontWeight: 700, fontSize: ".82rem", cursor: "pointer" }}>{children}</button>; }
-function PendingRow({ title, sub, onApprove, onReject, approveLabel = "✅ Approve", approveColor = "#2e7d32" }) { return <div style={{ border: "1.5px solid #e0e0e0", borderRadius: 12, padding: "1rem 1.25rem", marginBottom: ".75rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: ".5rem", background: "#fff" }}><div><div style={{ fontWeight: 700, fontSize: ".9rem" }}>{title}</div><div style={{ fontSize: ".78rem", color: "var(--gray-text)", marginTop: ".2rem" }}>{sub}</div></div><div style={{ display: "flex", gap: ".5rem" }}> <ApproveBtn onClick={onApprove} color={approveColor}>{approveLabel}</ApproveBtn> <RejectBtn onClick={onReject}>❌ Reject</RejectBtn></div></div>; }
-function InfoRow({ label, value }) { return <div style={{ display: "flex", gap: ".75rem", fontSize: ".83rem", marginBottom: ".45rem" }}><span style={{ color: "var(--gray-text)", minWidth: 110 }}>{label}</span><span style={{ fontWeight: 600 }}>{value}</span></div>; }
-function EmptyState({ icon, msg }) { return <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--gray-text)" }}><div style={{ fontSize: "2.5rem", marginBottom: ".6rem" }}>{icon}</div><div style={{ fontWeight: 700 }}>{msg}</div></div>; }
+function Meta({ items }) {
+  const visible = items.filter(it => it && it.text);
+  return (
+    <span className="adm-meta">
+      {visible.map((it, i) => (
+        <span key={i} className="adm-meta-item">{it.icon}{it.text}</span>
+      ))}
+    </span>
+  );
+}
+
+function PendingRow({ title, meta, onApprove, onReject, approveLabel = "Approve" }) {
+  return (
+    <div className="adm-row">
+      <div className="adm-row-main">
+        <span className="adm-row-title">{title}</span>
+        <Meta items={meta} />
+      </div>
+      <div className="adm-row-actions">
+        <Btn variant="approve" onClick={onApprove}><FiCheck /> {approveLabel}</Btn>
+        <Btn variant="reject"  onClick={onReject}><FiX /> Reject</Btn>
+      </div>
+    </div>
+  );
+}
+
+function Accordion({ open, onToggle, title, meta, children }) {
+  return (
+    <div className={`adm-acc${open ? " open" : ""}`}>
+      <button type="button" className="adm-acc-head" onClick={onToggle} aria-expanded={open}>
+        <span className="adm-row-main">
+          <span className="adm-row-title">{title}</span>
+          <Meta items={meta} />
+        </span>
+        <span className="adm-acc-toggle">
+          <span>{open ? "Hide details" : "View details"}</span>
+          <FiChevronDown className="adm-acc-chevron" />
+        </span>
+      </button>
+      {open && <div className="adm-acc-body">{children}</div>}
+    </div>
+  );
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <div className="adm-info-row">
+      <span className="adm-info-label">{label}</span>
+      <span className="adm-info-value">{value || "—"}</span>
+    </div>
+  );
+}
+
+function Loading({ msg }) {
+  return (
+    <div role="status" aria-label={msg} aria-busy="true">
+      <div className="adm-skel" />
+      <div className="adm-skel" />
+    </div>
+  );
+}
+
+function EmptyState({ icon, msg, sub }) {
+  return (
+    <div className="adm-empty">
+      <div className="adm-empty-icon">{icon}</div>
+      <div className="adm-empty-title">{msg}</div>
+      {sub && <div style={{ fontSize: ".85rem", marginTop: ".25rem" }}>{sub}</div>}
+    </div>
+  );
+}
+
+// ── Notifications (admin): send + read-only history. No delete anywhere. ──
+function AdminNotifications({ users }) {
+  const [items, setItems]     = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError]     = useState("");
+  const [form, setForm]       = useState({ to: "", title: "", message: "" });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/notifications/admin/all`, { credentials: "include" });
+      const result = await res.json();
+      if (!res.ok || !result.success) throw new Error(result.message || "Could not load notifications");
+      setItems(result.data?.items || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const send = async () => {
+    setError("");
+    if (!form.to || !form.title.trim() || !form.message.trim()) {
+      setError("Choose a recipient and fill in the title and message.");
+      return;
+    }
+    setSending(true);
+    try {
+      const userIds = form.to === "all" ? users.map(u => u._id) : [form.to];
+      const res = await fetch(`${API_BASE}/notifications`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds, title: form.title, message: form.message }),
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) throw new Error(result.message || "Send failed");
+      setForm({ to: "", title: "", message: "" });
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const fieldStyle = { width: "100%", padding: ".6rem .8rem", borderRadius: 8, border: "1px solid var(--gray-mid)", background: "var(--white)", color: "var(--dark)", font: "inherit" };
+
+  return (
+    <div>
+      <section className="adm-section">
+        <SectionTitle sub="Appears in the user's bell. Users can mark it as read but cannot delete it.">
+          Send notification
+        </SectionTitle>
+        <div style={{ display: "grid", gap: ".6rem", maxWidth: 520 }}>
+          <select aria-label="Recipient" style={fieldStyle} value={form.to}
+                  onChange={e => setForm({ ...form, to: e.target.value })}>
+            <option value="">Select recipient…</option>
+            <option value="all">All users ({users.length})</option>
+            {users.map(u => (
+              <option key={u._id} value={u._id}>{u.name}{u.email ? ` — ${u.email}` : ""}</option>
+            ))}
+          </select>
+          <input aria-label="Title" style={fieldStyle} placeholder="Title" value={form.title}
+                 onChange={e => setForm({ ...form, title: e.target.value })} />
+          <textarea aria-label="Message" style={fieldStyle} rows={3} placeholder="Message" value={form.message}
+                    onChange={e => setForm({ ...form, message: e.target.value })} />
+          {error && <div style={{ color: "#c62828", fontSize: ".85rem" }}>{error}</div>}
+          <div>
+            <Btn variant="primary" onClick={sending ? undefined : send}>
+              {sending ? "Sending…" : "Send notification"}
+            </Btn>
+          </div>
+        </div>
+      </section>
+
+      <section className="adm-section">
+        <SectionTitle sub="Everything sent to users. Read-only — notifications cannot be deleted.">
+          Sent notifications
+        </SectionTitle>
+        {loading ? (
+          <Loading msg="Loading notifications" />
+        ) : items.length === 0 ? (
+          <EmptyState icon={<FiInbox />} msg="Nothing sent yet" />
+        ) : (
+          items.map(n => (
+            <div key={n._id} className="adm-row">
+              <div className="adm-row-main">
+                <span className="adm-row-title">{n.title}</span>
+                <Meta items={[
+                  { icon: <FiUser />, text: `To: ${n.user?.name || "Unknown"}${n.user?.email ? ` (${n.user.email})` : ""}` },
+                  { icon: <FiCalendar />, text: new Date(n.createdAt).toLocaleString() },
+                  { text: n.isRead ? "Read" : "Unread" },
+                ]} />
+                <p style={{ margin: ".35rem 0 0", fontSize: ".85rem" }}>{n.message}</p>
+              </div>
+            </div>
+          ))
+        )}
+      </section>
+    </div>
+  );
+}

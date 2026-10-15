@@ -2,13 +2,16 @@ import { useState } from "react";
 // ─── CHAT FEATURE (Talha) ───
 import ChatNavButton from "./ChatNavButton";
 // ─── END CHAT FEATURE ───
+import { MdOutlineDarkMode } from "react-icons/md";
+import { MdOutlineLightMode } from "react-icons/md";
+import NotificationBell from "./NotificationBell";
+import { FiUser } from "react-icons/fi";
 
-export default function Navbar({ page, go, user, notifications = [], clearNotification }) {
+export default function Navbar({ page, go, user }) {
   const [open, setOpen]   = useState(false);
   const [dark, setDark]   = useState(() => document.body.classList.contains("dark"));
-  const [showNotif, setShowNotif] = useState(false);
 
-  const nav = (id) => { go(id); setOpen(false); setShowNotif(false); };
+  const nav = (id) => { go(id); setOpen(false); };
 
   const toggleDark = () => {
     const isDark = document.body.classList.toggle("dark");
@@ -73,89 +76,16 @@ export default function Navbar({ page, go, user, notifications = [], clearNotifi
           <ChatNavButton user={user} active={page === "chat"} onClick={() => nav("chat")} />
           {/* ─── END CHAT FEATURE ─── */}
 
-          {/* NOTIFICATION BELL BUTTON */}
-          {user && (
-            <div style={{ position: "relative" }}>
-              <button
-                onClick={() => setShowNotif(!showNotif)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: "1.3rem",
-                  padding: "6px 8px",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  position: "relative"
-                }}
-                title="Notifications"
-              >
-                🔔
-                {notifications.length > 0 && (
-                  <span style={{
-                    position: "absolute",
-                    top: "2px",
-                    right: "2px",
-                    background: "#c62828",
-                    color: "white",
-                    borderRadius: "50%",
-                    padding: "2px 6px",
-                    fontSize: "0.65rem",
-                    fontWeight: "bold"
-                  }}>
-                    {notifications.length}
-                  </span>
-                )}
-              </button>
+          {/* NOTIFICATION BELL — self-contained.*/}
 
-              {/* NOTIFICATION DROPDOWN */}
-              {showNotif && (
-                <div style={{
-                  position: "absolute",
-                  right: 0,
-                  top: "40px",
-                  background: "var(--bg, #fff)",
-                  border: "1px solid #e0e0e0",
-                  borderRadius: "12px",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                  width: "280px",
-                  zIndex: 1000,
-                  maxHeight: "350px",
-                  overflowY: "auto",
-                  padding: "0.5rem"
-                }}>
-                  <div style={{ fontWeight: "bold", padding: "0.5rem", borderBottom: "1px solid #eee", fontSize: "0.9rem", display: "flex", justifyContent: "space-between" }}>
-                    <span>Notifications</span>
-                    {notifications.length > 0 && <span style={{ fontSize: "0.75rem", color: "#007bff", cursor: "pointer" }} onClick={() => notifications.forEach((_, i) => clearNotification(i))}>Clear all</span>}
-                  </div>
-                  {notifications.length === 0 ? (
-                    <div style={{ padding: "1rem", textAlign: "center", fontSize: "0.8rem", color: "#888" }}>No new notifications</div>
-                  ) : (
-                    notifications.map((notif, idx) => (
-                      <div key={idx} style={{
-                        padding: "0.75rem 0.5rem",
-                        borderBottom: idx !== notifications.length - 1 ? "1px solid #f5f5f5" : "none",
-                        fontSize: "0.8rem",
-                        position: "relative"
-                      }}>
-                        <button 
-                          onClick={() => clearNotification(idx)}
-                          style={{ position: "absolute", right: "4px", top: "4px", background: "none", border: "none", cursor: "pointer", color: "#aaa" }}
-                        >
-                          ×
-                        </button>
-                        <div style={{ fontWeight: "700", color: notif.type === "success" ? "#2e7d32" : "#c62828" }}>
-                          {notif.type === "success" ? "✅ Post Approved" : "❌ Post Rejected"}
-                        </div>
-                        <div style={{ fontWeight: "600", margin: "2px 0" }}>{notif.houseName}</div>
-                        <div style={{ color: "var(--gray-text)" }}>{notif.message}</div>
-                        <span style={{ fontSize: "0.7rem", color: "#b0bec5", display: "block", marginTop: "4px" }}>{notif.time}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+
+
+              {/* This is for the both admin and user */}
+          {/* {user && <NotificationBell user={user} isAdmin={isPlatformAdmin} />} */}
+          {user && <NotificationBell user={user} />}
+
+
+
 
           <button
             className="nav-links-btn"
@@ -173,7 +103,15 @@ export default function Navbar({ page, go, user, notifications = [], clearNotifi
               transition: "background 0.2s",
             }}
           >
-            {dark ? "☀️" : "🌙"}
+            {dark ?<MdOutlineLightMode style={{
+        fontSize: "30px",
+        color: "#e3dad8",
+        cursor: "pointer"
+    }} />: <MdOutlineDarkMode style={{
+        fontSize: "30px",
+        color: "var(--red)",
+        cursor: "pointer"
+    }} />}
           </button>
 
           {/* DYNAMIC PROFILE AVATAR ICON */}
@@ -185,7 +123,7 @@ export default function Navbar({ page, go, user, notifications = [], clearNotifi
                 width: "36px",
                 height: "36px",
                 borderRadius: "50%",
-                backgroundColor: user.picture ? "transparent" : "#007bff",
+                backgroundColor: user.picture ? "transparent" : "var(--red)",
                 color: "#fff",
                 display: "flex",
                 alignItems: "center",
@@ -226,8 +164,8 @@ export default function Navbar({ page, go, user, notifications = [], clearNotifi
           <button key={l.id} onClick={() => nav(l.id)}>{l.label}</button>
         ))}
         {user && (
-          <button onClick={() => nav("profile")} style={{ fontWeight: "bold", borderTop: "1px solid #eee" }}>
-            👤 Profile ({user.name})
+          <button onClick={() => nav("profile")} style={{ fontWeight: "bold", borderTop: "1px solid var(--gray-mid)", display: "flex", alignItems: "center", gap: "8px" }}>
+            <FiUser /> Profile ({user.name})
           </button>
         )}
       </div>

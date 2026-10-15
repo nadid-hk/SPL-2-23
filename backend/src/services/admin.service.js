@@ -3,7 +3,8 @@ import { Post } from "../models/post.model.js";
 import { Notification } from "../models/notification.model.js";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/apiError.util.js";
-
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { removeLocalFile } from "../utils/removeLocalFile.util.js";
 // Rank-based accounts (RankUser discriminator) are only allowed to keep
 // editing their profile for ~6 months after registration — see
 // rankUser.model.js `profileEditDeadline`. Past that date the account is
@@ -50,11 +51,39 @@ export const reviewHomeRegistration = async (id, decision, reason, adminId) => {
         throw new ApiError(400, "This registration has already been reviewed");
     }
 
-    registration.status = decision; // "approved" | "rejected"
+    if (decision === "approved") {
+        // Upload FIRST. If Cloudinary fails we throw before changing anything,
+        // so the registration stays pending, the temp files stay, and the admin can retry.
+        const housePictureResult = await uploadOnCloudinary(registration.housePictureLocalPath);
+        if (!housePictureResult) throw new ApiError(502, "House picture upload failed. Please try again.");
+
+        const certificateResult = await uploadOnCloudinary(registration.khatianCertificateLocalPath);
+        if (!certificateResult) throw new ApiError(502, "Khatian certificate upload failed. Please try again.");
+
+        registration.housePicture = {
+            url: housePictureResult.secure_url,
+            publicId: housePictureResult.public_id
+        };
+        registration.khatianCertificate = {
+            url: certificateResult.secure_url,
+            publicId: certificateResult.public_id
+        };
+    }
+
+    const housePath = registration.housePictureLocalPath;
+    const certPath = registration.khatianCertificateLocalPath;
+
+    registration.housePictureLocalPath = "";
+    registration.khatianCertificateLocalPath = "";
+    registration.status = decision;
     registration.rejectionReason = decision === "rejected" ? (reason || "Not specified") : "";
     registration.reviewedBy = adminId || null;
     registration.reviewedAt = new Date();
     await registration.save();
+
+    // Approved -> now on Cloudinary; rejected -> never needed. Either way the temp copy goes.
+    removeLocalFile(housePath);
+    removeLocalFile(certPath);
 
     await Notification.create({
         user: registration.owner,
@@ -68,7 +97,6 @@ export const reviewHomeRegistration = async (id, decision, reason, adminId) => {
 
     return registration;
 };
-
 export const reviewPost = async (id, decision, reason, adminId) => {
     const post = await Post.findById(id);
     if (!post) throw new ApiError(404, "Post not found");
@@ -76,11 +104,26 @@ export const reviewPost = async (id, decision, reason, adminId) => {
         throw new ApiError(400, "This post has already been reviewed");
     }
 
+    const localPaths = [...(post.photoLocalPaths || [])];
+
+       if (decision === "approved" && localPaths.length > 0) {
+        const uploadedPhotos = [];
+        for (const localPath of localPaths) {
+            const result = await uploadOnCloudinary(localPath);
+            if (!result) throw new ApiError(502, "Photo upload failed. Please try again.");
+            uploadedPhotos.push({ url: result.secure_url, publicId: result.public_id });
+        }
+        post.photos = uploadedPhotos;
+    }
+
+    post.photoLocalPaths = [];
     post.status = decision;
     post.rejectionReason = decision === "rejected" ? (reason || "Not specified") : "";
     post.reviewedBy = adminId || null;
     post.reviewedAt = new Date();
     await post.save();
+
+    localPaths.forEach(removeLocalFile);
 
     await Notification.create({
         user: post.author,
@@ -123,6 +166,16 @@ export const deleteUser = async (id, adminId, reason) => {
         HomeRegister.deleteMany({ owner: id }),
         Post.deleteMany({ author: id })
     ]);
+    const [pendingRegs, pendingPosts] = await Promise.all([
+        HomeRegister.find({ owner: id, status: "pending" }).select("housePictureLocalPath khatianCertificateLocalPath"),
+        Post.find({ author: id, status: "pending" }).select("photoLocalPaths")
+    ]);
+    pendingRegs.forEach((r) => {
+        removeLocalFile(r.housePictureLocalPath);
+        removeLocalFile(r.khatianCertificateLocalPath);
+    });
+    pendingPosts.forEach((p) => (p.photoLocalPaths || []).forEach(removeLocalFile));
+
     await Notification.deleteMany({ user: id });
 
     await User.findByIdAndDelete(id);

@@ -204,6 +204,31 @@ button { font-family: 'DM Sans', sans-serif; cursor: pointer; }
   transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
   box-shadow: var(--shadow);
 }
+
+.btn-primaryV2 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+
+  /* Equal button width */
+  flex: 1;
+  min-width: 0;
+
+  background: var(--red);
+  color: var(--white);
+  border: none;
+  padding: 0.82rem 1rem;
+  border-radius: 12px;
+
+  font-family: 'Sora', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: var(--shadow);
+}
 .btn-primary:hover { background: var(--red-dark); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 
 .cards-section { padding: 1.5rem 2rem 4rem; max-width: 1100px; margin: 0 auto; width: 100%; }
@@ -229,9 +254,9 @@ button { font-family: 'DM Sans', sans-serif; cursor: pointer; }
 }
 .btn-link:hover { gap: 0.6rem; }
 
-.footer { background: var(--red-dark); color: rgba(255,255,255,0.9); padding: 2.25rem 2rem; }
-.footer h4 { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 0.3rem; }
-.footer p  { font-size: 0.88rem; opacity: 0.8; }
+.footer { background: var(--gray-bg); border-top: 1px solid var(--gray-mid); padding: 3rem 2rem 2rem; }
+.footer h4 { font-family: 'Sora', sans-serif; font-size: 1.2rem; font-weight: 800; letter-spacing: -.01em; color: var(--red); margin-bottom: .55rem; }
+.footer p  { max-width: 460px; font-size: .92rem; line-height: 1.7; color: var(--gray-text); }
 
 
 /* ═══════════════════════════════════════════
@@ -927,3 +952,48 @@ body.dark .leaflet-popup-content-wrapper, body.dark .leaflet-popup-tip { backgro
   .profile-grid  { grid-template-columns: 1fr; }
   .photo-grid    { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════════
+   UI POLISH — react-icons + shared helpers
+   (notices, status buttons, icon alignment)
+═══════════════════════════════════════════ */
+.btn-icon { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; }
+
+.notice {
+  display: flex; align-items: flex-start; gap: .6rem;
+  padding: .85rem 1.1rem; margin-bottom: 1rem;
+  border-radius: 12px; border: 1.5px solid;
+  font-size: .85rem; line-height: 1.55;
+}
+.notice svg { flex-shrink: 0; margin-top: 3px; font-size: 1.05rem; }
+.notice.error { background: var(--red-hover); color: var(--red); border-color: var(--red); }
+.notice.warn  { background: #fff8e1; color: #795548; border-color: #ffe082; }
+.notice.info  { background: var(--gray-bg); color: var(--dark); border-color: var(--gray-mid); }
+.notice.info svg { color: var(--red); }
+
+.status-btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .45rem 1rem; border-radius: 999px; border: 1.5px solid;
+  font-weight: 600; font-size: .82rem; cursor: pointer; transition: all .2s;
+}
+.status-btn:hover { transform: translateY(-1px); }
+.status-btn.to-available { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+.status-btn.to-rented    { background: var(--red-hover); color: var(--red); border-color: var(--red); }
+
+.admin-chip {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .75rem; font-weight: 700; color: var(--red);
+  background: var(--white); border: 1px solid var(--gray-mid);
+  border-radius: 999px; padding: .3rem .8rem;
+}
+
+.feature-icon svg { color: var(--red); }
+.prop-meta-row svg { color: var(--red); flex-shrink: 0; }
+.back-btn { display: inline-flex; align-items: center; gap: .4rem; }
+
+.step-item { display: flex; align-items: center; justify-content: center; gap: .35rem; }
+.step-item svg { flex-shrink: 0; }
+@media (max-width: 560px) { .step-item span { display: none; } }
+
+.star { font-size: .9rem; }
+.profile-section-title svg, .reason-label svg { color: var(--red); }

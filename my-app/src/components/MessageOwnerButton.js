@@ -8,6 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { useState } from "react";
 import { chatApi } from "../chatApi";
+import { FaRocketchat } from "react-icons/fa";
 
 export default function MessageOwnerButton({ go, user, house }) {
   const [starting, setStarting] = useState(false);
@@ -40,14 +41,29 @@ export default function MessageOwnerButton({ go, user, house }) {
 
   return (
     <>
-      <button
-        className="btn-primary"
+    <div
+    style={{
+        display: "flex",
+        gap: "12px",
+        width: "100%",
+        marginTop: "0.75rem"
+    }}
+>
+    {/* Message Owner */}
+    <button
+        className="btn-primaryV2"
         onClick={openChat}
         disabled={starting}
-        style={{ width: "100%", marginTop: "0.75rem" }}
-      >
-        {starting ? "Opening chat..." : "💬 Message Owner"}
-      </button>
+    >
+        {starting ? (
+            "Opening chat..."
+        ) : (
+            <>
+                <FaRocketchat style={{ fontSize: "20px" }} />
+                Message Owner
+            </>
+        )}
+    </button></div>
 
       {error && (
         <div style={{ color: "#c62828", fontSize: "0.8rem", marginTop: "0.5rem" }}>

@@ -1,5 +1,6 @@
 import { HomeRegister } from "../models/homeRegister.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { removeLocalFile } from "../utils/removeLocalFile.util.js";
 import { ApiError } from "../utils/apiError.util.js";
 import fs from "fs";
 
@@ -53,65 +54,32 @@ export const findOwnerInfoByKhatianNumber = async (khatianNumber) => {
 };
 
 export const createHomeRegistration = async (data, ownerId, ownerGroupId = null) => {
-    let housePictureResult = null;
-    let khatianCertificateResult = null;
-
     try {
-        // 1. Upload House Picture asset to Cloudinary
-        housePictureResult = await uploadOnCloudinary(data.housePictureLocalPath);
-        if (!housePictureResult) throw new Error("House Picture upload execution failed.");
-
-        // 2. Upload Khatian Certificate asset to Cloudinary
-        khatianCertificateResult = await uploadOnCloudinary(data.khatianCertificateLocalPath);
-        if (!khatianCertificateResult) throw new Error("Khatian Certificate upload execution failed.");
-
-        // Double check safety execution block: Delete temporary local files explicitly
-        if (fs.existsSync(data.housePictureLocalPath)) fs.unlinkSync(data.housePictureLocalPath);
-        if (fs.existsSync(data.khatianCertificateLocalPath)) fs.unlinkSync(data.khatianCertificateLocalPath);
-
-        // 3. Assemble components & write database document into MongoDB.
-        // NOTE: `status` is NOT set here — it always comes in as the schema's
-        // default "pending". This registration is not usable/live until an
-        // admin explicitly approves it via the admin review endpoints.
+        // Files stay in the temp folder until an admin approves.
         const payload = {
             owner: ownerId,
             ownerFullName: data.ownerFullName,
             phoneNumber: data.phoneNumber,
-            khatianNumber: data.khatianNumber, // Save credentials securely
-            password: data.password,           // Hashed automatically via pre-save hook
+            khatianNumber: data.khatianNumber,
+            password: data.password,
             housePropertyName: data.housePropertyName,
             houseAddress: data.houseAddress,
-            housePicture: {
-                url: housePictureResult.secure_url,
-                publicId: housePictureResult.public_id
-            },
+            housePictureLocalPath: data.housePictureLocalPath,
+            khatianCertificateLocalPath: data.khatianCertificateLocalPath,
             houseMap: {
                 type: "Point",
-                coordinates: data.coordinates 
-            },
-            khatianCertificate: {
-                url: khatianCertificateResult.secure_url,
-                publicId: khatianCertificateResult.public_id
+                coordinates: data.coordinates
             }
         };
 
-        // NEW: only set ownerGroupId explicitly when we resolved one from a
-        // previousKhatianNumber. Otherwise leave the key out entirely so the
-        // schema's default (= this document's own _id) kicks in, making it
-        // the first property of a brand new group.
-        if (ownerGroupId) {
-            payload.ownerGroupId = ownerGroupId;
-        }
-        if (data.previousKhatianNumber) {
-            payload.linkedViaKhatianNumber = data.previousKhatianNumber;
-        }
+        if (ownerGroupId) payload.ownerGroupId = ownerGroupId;
+        if (data.previousKhatianNumber) payload.linkedViaKhatianNumber = data.previousKhatianNumber;
 
-        const newRegistration = await HomeRegister.create(payload);
-
-        return newRegistration;
+        return await HomeRegister.create(payload);
     } catch (error) {
-        if (fs.existsSync(data.housePictureLocalPath)) fs.unlinkSync(data.housePictureLocalPath);
-        if (fs.existsSync(data.khatianCertificateLocalPath)) fs.unlinkSync(data.khatianCertificateLocalPath);
+        // DB write failed -> nothing to review later, so clean up now.
+        removeLocalFile(data.housePictureLocalPath);
+        removeLocalFile(data.khatianCertificateLocalPath);
         throw error;
     }
 };

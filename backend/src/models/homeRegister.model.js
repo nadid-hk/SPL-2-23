@@ -85,15 +85,17 @@ const homeRegisterSchema = new mongoose.Schema(
             required: [true, "House address is required"],
             trim: true
         },
-        housePicture: {
-            url: {
-                type: String,
-                required: [true, "House picture URL is required"]
-            },
-            publicId: {
-                type: String,
-                required: true
-            }
+        housePictureLocalPath: {
+            type: String,
+            default: ""
+        },
+        khatianCertificateLocalPath: {
+            type: String,
+            default: ""
+        },
+         housePicture: {
+            url: { type: String, default: "" },
+            publicId: { type: String, default: "" }
         },
         houseMap: {
             type: {
@@ -106,15 +108,9 @@ const homeRegisterSchema = new mongoose.Schema(
                 required: [true, "House location coordinates are required"]
             }
         },
-        khatianCertificate: {
-            url: {
-                type: String,
-                required: [true, "Khatian certificate image URL is required"]
-            },
-            publicId: {
-                type: String,
-                required: true
-            }
+          khatianCertificate: {
+            url: { type: String, default: "" },
+            publicId: { type: String, default: "" }
         },
         status: {
             type: String,

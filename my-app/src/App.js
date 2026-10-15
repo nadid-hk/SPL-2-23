@@ -8,26 +8,60 @@ import Detail       from "./pages/Detail";
 import Profile      from "./pages/Profile";
 import Post         from "./pages/Post";
 import AdminDashboard from "./pages/AdminDashboard";
+import { loadSession } from "./auth";
+
 // ─── CHAT FEATURE (Talha) ───
 import Chat         from "./pages/Chat";
 // ─── END CHAT FEATURE ───
 import "./App.css";
 import "./Darkmode.css";
 
-export default function App() {
-  const [page, setPage]     = useState("home");
-  const [pageData, setPageData] = useState(null);
-  const [user, setUser]     = useState(null);
+const PAGE_KEY = "khoj_page";
+const AUTH_PAGES   = ["login", "signup", "home-register"];
+const PUBLIC_PAGES = ["home", "login", "signup","home-register"];
 
-  // go("detail", houseObject) — second arg is optional page-level data
+const readSavedPage = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem(PAGE_KEY));
+  } catch {
+    return null;
+  }
+};
+
+export default function App() {
+  const [user, setUser] = useState(() => loadSession());
+
+  const [page, setPage] = useState(() => {
+    const session = loadSession();
+    const saved = readSavedPage();
+
+    if (!session) {
+      return saved && PUBLIC_PAGES.includes(saved.page) ? saved.page : "home";
+    }
+    // logged in: restore the saved page unless it's a login/signup page
+    if (saved?.page && !AUTH_PAGES.includes(saved.page)) {
+      // only admins may restore the admin page
+      if (saved.page === "adminDashboard" && session.role !== "admin") return "dashboard";
+      return saved.page;
+    }
+    return session.role === "admin" ? "adminDashboard" : "dashboard";
+  });
+
+  const [pageData, setPageData] = useState(() => readSavedPage()?.data ?? null);
+
   const go = (dest, data = null) => {
     setPage(dest);
     setPageData(data);
+    try {
+      sessionStorage.setItem(PAGE_KEY, JSON.stringify({ page: dest, data }));
+    } catch {}
     window.scrollTo(0, 0);
   };
 
   const handleLogin = (userData) => {
+    
     setUser(userData);
+    console.log(userData)
     if (userData?.role === "admin") {
       go("adminDashboard");
     } else {
@@ -38,12 +72,15 @@ export default function App() {
   const handleUpdateUser = (data)     => setUser(u => ({ ...u, ...data }));
 
   const shared = { go, user };
+  // Changes whenever a different user logs in / signs up, forcing
+  // user-specific pages to remount and refetch their data.
+  const userKey = user?._id || user?.id || "guest";
 
   return (
     <>
       {page === "home"          && <Home          go={go} user={user} />}
       {page === "login"         && <Login         go={go} onLogin={handleLogin} />}
-      {page === "signup"        && <Signup        go={go} />}
+      {page === "signup"        && <Signup        go={go} onLogin={handleLogin} />}
       {page === "home-register" && <HomeRegister go={go} user={user} />}
       {page === "dashboard"     && <Dashboard     {...shared} />}
       {page === "adminDashboard" && <AdminDashboard {...shared} />}

@@ -1,9 +1,21 @@
 import { Router } from "express";
-import { getUserNotifications, markNotificationRead } from "../controllers/notification.controller.js";
+import {
+    sendNotification,
+    getAllSentNotifications,
+    getMyNotifications,
+    markNotificationRead
+} from "../controllers/notification.controller.js";
+import { verifyJWT } from "../middleware/auth.middleware.js";
+import { verifyAdminToken  } from "../middleware/admin.middleware.js";
 
 const router = Router();
 
-router.route("/notifications/:userId").get(getUserNotifications);
-router.route("/notifications/:id/read").patch(markNotificationRead);
+// user
+router.route("/notifications/me").get(verifyJWT, getMyNotifications);
+router.route("/notifications/:id/read").patch(verifyJWT, markNotificationRead);
+
+// admin
+router.route("/notifications").post(verifyAdminToken, sendNotification);
+router.route("/notifications/admin/all").get(verifyAdminToken, getAllSentNotifications);
 
 export default router;
