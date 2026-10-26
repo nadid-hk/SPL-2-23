@@ -46,10 +46,7 @@ export default function Navbar({ page, go, user }) {
       <nav className="nav" style={{ position: "relative" }}>
         {/* LOGO */}
         <div className="nav-brand" onClick={() => nav("home")}>
-          <div className="logo-wrap">
-            <img src="/logo.png" alt="KHOJ logo" />
-          </div>
-          <span className="brand-name">KHOJ</span>
+        <span className="brand-name" style={{fontSize:"30px"}}>খোঁজ</span>
         </div>
 
         {/* Desktop links */}
@@ -80,9 +77,9 @@ export default function Navbar({ page, go, user }) {
 
 
 
-              {/* This is for the both admin and user */}
+          {/* This is for the both admin and user */}
           {/* {user && <NotificationBell user={user} isAdmin={isPlatformAdmin} />} */}
-          {user && <NotificationBell user={user} />}
+          {user && !isPlatformAdmin && <NotificationBell user={user} />}
 
 
 

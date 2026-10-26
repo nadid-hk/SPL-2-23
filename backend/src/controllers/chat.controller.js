@@ -61,3 +61,12 @@ export const sendMessage = asyncHandler(async (req, res) => {
         .status(201)
         .json(new ApiResponse(201, message, "Message sent"));
 });
+export const sendDirectMessage = asyncHandler(async (req, res) => {
+    const conversation = await findOrCreateConversation(req.user._id, req.body.recipientId, req.body.postId);
+    const { message } = await createMessage({
+        conversationId: conversation._id,
+        senderId: req.user._id,
+        text: req.body.text
+    });
+    return res.status(201).json(new ApiResponse(201, { conversationId: conversation._id, message }, "Message sent"));
+});

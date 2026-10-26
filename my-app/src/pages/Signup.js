@@ -1,17 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import Navbar from "../components/Navbar";
-import { API_USERS as API_BASE } from "../config";
+import { API_USERS as API_BASE, API_BASE as API_ROOT } from "../config";
 import { IoHomeOutline } from "react-icons/io5";
+import { saveSession } from "../auth";
 
 const IUT_EMAIL = /^[a-zA-Z0-9._%+-]+@iut-dhaka\.edu$/;
 const ANY_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BD_PHONE = /^01\d{9}$/;
 
-// Set to true once you have a real OTP backend. While false, the rank form
-// skips OTP entirely (it used to block submission forever because the
-// "Send OTP" button was commented out).
-const OTP_ENABLED = false;
+const OTP_LENGTH = 6;
+const RESEND_SECONDS = 60;
 
 /* ───────────── shared helpers ───────────── */
 
@@ -127,20 +126,165 @@ function Field({ label, error, children }) {
   );
 }
 
+/* ───────────── Email OTP (shared by both forms) ───────────── */
+
+const normEmail = (e) => e.trim().toLowerCase();
+
+async function postJson(path, body) {
+  try {
+    const res = await fetch(`${API_ROOT}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, message: data.message || (res.ok ? "" : "Something went wrong. Please try again.") };
+  } catch (err) {
+    console.error("OTP request error:", err);
+    return { ok: false, message: "Could not connect to the server. Please try again later." };
+  }
+}
+
+// Keeps all OTP state for one form. "Sent" and "verified" are remembered per
+// email address, so editing the email afterwards automatically cancels them.
+function useEmailOtp() {
+  const [code, setCode] = useState("");
+  const [sentTo, setSentTo] = useState("");
+  const [verifiedEmail, setVerifiedEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  const send = async (email) => {
+    const key = normEmail(email);
+    setBusy(true);
+    setError("");
+    const r = await postJson("/otp/generate-otp", { email: key });
+    setBusy(false);
+    if (!r.ok) return setError(r.message);
+    setSentTo(key);
+    setCode("");
+    setCooldown(RESEND_SECONDS);
+  };
+
+  const verify = async (email) => {
+    if (code.length !== OTP_LENGTH) return setError(`Please enter the ${OTP_LENGTH}-digit OTP.`);
+    const key = normEmail(email);
+    setBusy(true);
+    setError("");
+    const r = await postJson("/otp/verify-otp", { email: key, otp: code });
+    setBusy(false);
+    if (!r.ok) return setError(r.message);
+    setVerifiedEmail(key);
+  };
+
+  return {
+    code, setCode, busy, error, setError, cooldown, send, verify,
+    isSent: (email) => sentTo !== "" && sentTo === normEmail(email),
+    isVerified: (email) => verifiedEmail !== "" && verifiedEmail === normEmail(email),
+  };
+}
+
+// validate(email) returns an error string, or "" when the email is acceptable.
+function EmailOtpControls({ email, validate, otp }) {
+  if (otp.isVerified(email)) {
+    return (
+      <div className="fg">
+        <p style={{ color: "var(--green)", fontWeight: 500 }}>✓ Email verified</p>
+      </div>
+    );
+  }
+
+  const handleSend = () => {
+    const msg = validate(email);
+    if (msg) return otp.setError(msg);
+    otp.send(email);
+  };
+
+  if (!otp.isSent(email)) {
+    return (
+      <div className="fg">
+        <button type="button" className="btn-submit secondary" onClick={handleSend} disabled={otp.busy}>
+          {otp.busy ? "Sending..." : "Send OTP to email"}
+        </button>
+        {otp.error && <span className="err-msg">{otp.error}</span>}
+      </div>
+    );
+  }
+
+  return (
+    <Field label="Enter OTP" error={otp.error}>
+      <input
+        type="text"
+        name="email-otp-code"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        className={otp.error ? "error" : ""}
+        placeholder={`Enter the ${OTP_LENGTH}-digit code`}
+        value={otp.code}
+        maxLength={OTP_LENGTH}
+        onChange={(e) => /^\d*$/.test(e.target.value) && otp.setCode(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            otp.verify(email);
+          }
+        }}
+      />
+      <p style={{ opacity: 0.7, fontSize: ".8rem", marginTop: ".35rem" }}>
+        We sent a code to {normEmail(email)}. It expires in 5 minutes.
+      </p>
+      <button
+        type="button"
+        className="btn-submit"
+        style={{ marginTop: "0.75rem" }}
+        onClick={() => otp.verify(email)}
+        disabled={otp.busy}
+      >
+        {otp.busy ? "Checking..." : "Verify OTP"}
+      </button>
+      <button
+        type="button"
+        className="btn-submit secondary"
+        style={{ marginTop: "0.5rem" }}
+        onClick={handleSend}
+        disabled={otp.busy || otp.cooldown > 0}
+      >
+        {otp.cooldown > 0 ? `Resend OTP in ${otp.cooldown}s` : "Resend OTP"}
+      </button>
+    </Field>
+  );
+}
+
 /* ───────────── Register with Email ───────────── */
+
+const validateIutEmail = (email) => {
+  if (!email) return "Email is required.";
+  if (!IUT_EMAIL.test(email)) return "Only @iut-dhaka.edu email addresses are allowed.";
+  return "";
+};
 
 function EmailSignup({ onDone }) {
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const otp = useEmailOtp();
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const submit = async (e) => {
     e.preventDefault();
     const errs = {};
     if (!form.name.trim()) errs.name = "Name is required.";
-    if (!form.email) errs.email = "Email is required.";
-    else if (!IUT_EMAIL.test(form.email)) errs.email = "Only @iut-dhaka.edu email addresses are allowed.";
+    const emailErr = validateIutEmail(form.email);
+    if (emailErr) errs.email = emailErr;
+    else if (!otp.isVerified(form.email)) errs.otp = "Please verify your email with the OTP first.";
     if (!form.password) errs.password = "Password is required.";
     else if (form.password.length < 6) errs.password = "Password must be at least 6 characters.";
 
@@ -151,8 +295,9 @@ function EmailSignup({ onDone }) {
     const result = await registerUser({
       method: "email",
       name: form.name.trim(),
-      email: form.email,
+      email: normEmail(form.email),
       password: form.password,
+      otp: otp.code, // the backend re-checks this, so verification can't be skipped
     });
 
     setSubmitting(false);
@@ -200,6 +345,11 @@ function EmailSignup({ onDone }) {
         />
       </Field>
 
+      <EmailOtpControls email={form.email} validate={validateIutEmail} otp={otp} />
+      {errors.otp && !otp.isVerified(form.email) && (
+        <span className="err-msg" style={{ display: "block", marginBottom: 10 }}>{errors.otp}</span>
+      )}
+
       <Field label="Password" error={errors.password}>
         <input
           type="password"
@@ -221,39 +371,20 @@ function EmailSignup({ onDone }) {
 
 /* ───────────── Register with Rank ───────────── */
 
+// For rank signup the email can be any provider, but it is now required
+// because the OTP is sent to it.
+const validateAnyEmail = (email) => {
+  if (!email) return "Email is required to receive the OTP.";
+  if (!ANY_EMAIL.test(email)) return "Please enter a valid email address.";
+  return "";
+};
+
 function RankSignup({ onDone }) {
-  const [form, setForm] = useState({ rank: "", name: "", phone: "", otp: "", email: "", password: "" });
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
+  const [form, setForm] = useState({ rank: "", name: "", phone: "", email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const otp = useEmailOtp();
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-
-  const handleSendOTP = () => {
-    if (!BD_PHONE.test(form.phone)) {
-      return setErrors((p) => ({ ...p, phone: "Enter a valid 11-digit phone number (01XXXXXXXXX)." }));
-    }
-    // TODO: real OTP API call
-    alert(`OTP sent to ${form.phone}`);
-    setErrors((p) => ({ ...p, phone: undefined }));
-    setOtpSent(true);
-    setOtpVerified(false);
-  };
-
-  const handleVerifyOTP = () => {
-    if (form.otp.length !== 6) {
-      return setErrors((p) => ({ ...p, otp: "Please enter the 6-digit OTP." }));
-    }
-    // TODO: real OTP verification call
-    setOtpVerified(true);
-    setErrors((p) => ({ ...p, otp: undefined }));
-  };
-
-  const changePhone = () => {
-    setOtpSent(false);
-    setOtpVerified(false);
-    setForm((f) => ({ ...f, otp: "" }));
-  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -262,9 +393,9 @@ function RankSignup({ onDone }) {
     if (!form.name.trim()) errs.name = "Name is required.";
     if (!form.phone) errs.phone = "Phone number is required.";
     else if (!BD_PHONE.test(form.phone)) errs.phone = "Enter a valid 11-digit phone number (01XXXXXXXXX).";
-    if (OTP_ENABLED && !otpVerified) errs.otp = "Please verify your phone number via OTP first.";
-    // Email is optional here and can be any provider (not only IUT)
-    if (form.email && !ANY_EMAIL.test(form.email)) errs.email = "Please enter a valid email address.";
+    const emailErr = validateAnyEmail(form.email);
+    if (emailErr) errs.email = emailErr;
+    else if (!otp.isVerified(form.email)) errs.otp = "Please verify your email with the OTP first.";
     if (!form.password) errs.password = "Password is required.";
     else if (form.password.length < 6) errs.password = "Password must be at least 6 characters.";
 
@@ -277,9 +408,9 @@ function RankSignup({ onDone }) {
       rank: form.rank.trim(),
       name: form.name.trim(),
       phone: form.phone,
-      email: form.email || undefined,
+      email: normEmail(form.email),
       password: form.password,
-      ...(OTP_ENABLED ? { otp: form.otp } : {}),
+      otp: otp.code, // the backend re-checks this, so verification can't be skipped
     });
 
     setSubmitting(false);
@@ -317,58 +448,21 @@ function RankSignup({ onDone }) {
         />
       </Field>
 
-      {/* Phone (+ optional OTP) */}
-      {!otpVerified ? (
-        <Field label="Phone Number" error={errors.phone}>
-          <input
-            type="tel"
-            name="rank-signup-phone"
-            autoComplete="off"
-            inputMode="numeric"
-            className={errors.phone ? "error" : ""}
-            placeholder="01XXXXXXXXX"
-            value={form.phone}
-            maxLength={11}
-            disabled={otpSent}
-            onChange={(e) => /^\d*$/.test(e.target.value) && set("phone")(e)}
-          />
-          {OTP_ENABLED && !otpSent && (
-            <button type="button" className="btn-submit" style={{ marginTop: "0.75rem" }} onClick={handleSendOTP}>
-              Send OTP
-            </button>
-          )}
-        </Field>
-      ) : (
-        <div className="fg">
-          <p style={{ color: "var(--green)", fontWeight: 500 }}>✓ Phone verified: {form.phone}</p>
-          <button type="button" className="btn-submit secondary" style={{ marginTop: "0.5rem" }} onClick={changePhone}>
-            Change Phone
-          </button>
-        </div>
-      )}
+      <Field label="Phone Number" error={errors.phone}>
+        <input
+          type="tel"
+          name="rank-signup-phone"
+          autoComplete="off"
+          inputMode="numeric"
+          className={errors.phone ? "error" : ""}
+          placeholder="01XXXXXXXXX"
+          value={form.phone}
+          maxLength={11}
+          onChange={(e) => /^\d*$/.test(e.target.value) && set("phone")(e)}
+        />
+      </Field>
 
-      {OTP_ENABLED && otpSent && !otpVerified && (
-        <Field label="Enter OTP" error={errors.otp}>
-          <input
-            type="text"
-            name="rank-signup-otp"
-            autoComplete="one-time-code"
-            className={errors.otp ? "error" : ""}
-            placeholder="Enter the 6-digit code"
-            value={form.otp}
-            maxLength={6}
-            onChange={set("otp")}
-          />
-          <button type="button" className="btn-submit" style={{ marginTop: "0.75rem" }} onClick={handleVerifyOTP}>
-            Verify OTP
-          </button>
-          <button type="button" className="btn-submit secondary" style={{ marginTop: "0.5rem" }} onClick={changePhone}>
-            Change Phone
-          </button>
-        </Field>
-      )}
-
-      <Field label="Email Address (optional)" error={errors.email}>
+      <Field label="Email Address" error={errors.email}>
         <input
           type="email"
           name="rank-signup-email"
@@ -379,6 +473,11 @@ function RankSignup({ onDone }) {
           onChange={set("email")}
         />
       </Field>
+
+      <EmailOtpControls email={form.email} validate={validateAnyEmail} otp={otp} />
+      {errors.otp && !otp.isVerified(form.email) && (
+        <span className="err-msg" style={{ display: "block", marginBottom: 10 }}>{errors.otp}</span>
+      )}
 
       <Field label="Password" error={errors.password}>
         <input
@@ -408,11 +507,27 @@ export default function Signup({ go, onLogin }) {
 
   // Show the loading screen, wait for the backend, then hand the user to App
   // (which sets it as the current user and opens the dashboard).
-  const handleDone = async (user) => {
-    setFinishing(true);
-    const finalUser = await waitForUser(user);
-    onLogin(finalUser);
+ const handleDone = async (user) => {
+  setFinishing(true);
+  const finalUser = await waitForUser(user);
+
+  const sessionUser = {
+    _id: finalUser._id,
+    name: finalUser.name,
+    email: finalUser.email || "",
+    mobile: finalUser.phone || "",
+    type: method === "rank" ? "temporary" : "student",
+    rank: finalUser.rank || "",
+    dept: finalUser.dept || "",
+    batch: finalUser.batch || "",
+    bio: finalUser.bio || "",
+    picture: finalUser.picture || "",
+    role: finalUser.role || (method === "rank" ? "temporary" : "student"),
   };
+
+  saveSession(sessionUser);
+  onLogin(sessionUser);
+};
 
   const handleGoogleSuccess = (credentialResponse) => {
     console.log("Google login success:", credentialResponse);

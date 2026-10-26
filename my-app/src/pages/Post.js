@@ -16,6 +16,8 @@ const AMENITIES = [
   "Wi-Fi", "Rooftop Access", "Generator",
 ];
 
+const DEPARTMENTS = ["CSE", "EEE", "MPE", "CIVIL", "BTM"];
+
 const GATE_TIMES = [
   "9:00 PM", "9:30 PM", "10:00 PM", "10:30 PM",
   "11:00 PM", "11:30 PM", "12:00 AM", "No Gate / 24hr Open",
@@ -39,13 +41,17 @@ const STEPS = [
 export default function Post({ go, user }) {
   const handleProfileClick = () => go("profile");
 
-  const [step, setStep] = useState(1);
+  // Step 0 = "Are you posting as an owner or a student?"
+  const [step, setStep] = useState(0);
 
   const [houses, setHouses] = useState([]);
   const [housesLoading, setHousesLoading] = useState(true);
   const [housesError, setHousesError] = useState("");
 
   const [form, setForm] = useState({
+    postedAs:          "",   // "owner" | "student"
+    khatianNumber:     "",   // owner only — re-entered to look up HomeRegister
+    studentDepartment: "",   // student only
     registeredHouse:   "",   
     rent:              "",
     contactPhone:      user?.phone || user?.mobile || "", // 👉 Added to form state so it is editable
@@ -81,7 +87,13 @@ export default function Post({ go, user }) {
   const next = () => setStep(s => s + 1);
   const prev = () => setStep(s => s - 1);
 
+  const isOwner = form.postedAs === "owner";
+  const isStudent = form.postedAs === "student";
+
+  // Students pick from the approved-properties list. Owners never need it:
+  // their property is resolved from the Khatian number they enter first.
   useEffect(() => {
+    if (!isStudent) return;
     const fetchApprovedHouses = async () => {
       setHousesLoading(true);
       setHousesError("");
@@ -91,7 +103,7 @@ export default function Post({ go, user }) {
         if (response.ok && result.success) {
           setHouses(result.data || []);
         } else {
-          throw new Error(result.message || "Could not load your approved properties.");
+          throw new Error(result.message || "Could not load approved properties.");
         }
       } catch (err) {
         setHousesError(err.message);
@@ -100,9 +112,130 @@ export default function Post({ go, user }) {
       }
     };
     fetchApprovedHouses();
-  }, []);
+  }, [isStudent]);
 
-  const selectedHouse = houses.find(h => h._id === form.registeredHouse);
+  // ── Owner gate: the Khatian number is looked up in HomeRegister and the
+  // property, address, owner name and phone all come back from there.
+  const [ownerInfo, setOwnerInfo] = useState(null);
+  const [ownerVerified, setOwnerVerified] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState("");
+
+  const selectedHouse = isOwner
+    ? (ownerInfo
+        ? {
+            _id: ownerInfo.registeredHouse,
+            housePropertyName: ownerInfo.housePropertyName,
+            ownerFullName: ownerInfo.ownerFullName,
+          }
+        : undefined)
+    : houses.find(h => h._id === form.registeredHouse);
+
+  // Real owner of the selected property (HomeRegister.ownerFullName) for the
+  // student flow — NOT the logged-in user's account name.
+  const [ownerName, setOwnerName] = useState("");
+  const [ownerLoading, setOwnerLoading] = useState(false);
+  const [ownerError, setOwnerError] = useState("");
+
+  useEffect(() => {
+    if (!isStudent || !form.registeredHouse) { setOwnerName(""); setOwnerError(""); return; }
+    let cancelled = false;
+    setOwnerLoading(true);
+    setOwnerError("");
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/ownerinfo/${form.registeredHouse}/owner-info`, { credentials: "include" });
+        const data = await res.json();
+        // Accept either { data: { ownerFullName } } or { ownerFullName }
+        const name = data?.data?.ownerFullName || data?.ownerFullName || "";
+        if (cancelled) return;
+        if (res.ok && name) {
+          setOwnerName(name);
+        } else {
+          setOwnerName("");
+          setOwnerError(data?.message || `Could not load owner (status ${res.status})`);
+        }
+      } catch (err) {
+        if (!cancelled) { setOwnerName(""); setOwnerError(err.message); }
+      } finally {
+        if (!cancelled) setOwnerLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [form.registeredHouse, isStudent]);
+
+  // Owner: from HomeRegister via the Khatian lookup.
+  // Student: the selected property's owner.
+  const displayOwnerName = isOwner
+    ? (ownerInfo?.ownerFullName || "")
+    : (ownerName || selectedHouse?.ownerFullName || "");
+
+  // Editing the Khatian number invalidates a previous verification and
+  // clears everything that was auto-filled from it.
+  useEffect(() => {
+    setOwnerVerified(false);
+    setOwnerInfo(null);
+    setVerifyError("");
+    setForm(f => (f.postedAs === "owner" ? { ...f, registeredHouse: "", contactPhone: "" } : f));
+  }, [form.khatianNumber]);
+
+  const chooseRole = (role) => {
+    setForm(f => ({
+      ...f,
+      postedAs: role,
+      khatianNumber: "",
+      registeredHouse: "",
+      studentDepartment: "",
+      // owner phone comes from HomeRegister after the Khatian lookup;
+      // student phone is typed (prefilled from the account if known).
+      contactPhone: role === "student" ? (user?.phone || user?.mobile || "") : "",
+    }));
+    setOwnerVerified(false);
+    setOwnerInfo(null);
+    setVerifyError("");
+    setErrorMessage("");
+    // Students go straight on. Owners must pass the Khatian gate first.
+    if (role === "student") setStep(1);
+  };
+
+  const resetRole = () => {
+    setForm(f => ({ ...f, postedAs: "", khatianNumber: "", registeredHouse: "", contactPhone: "" }));
+    setOwnerVerified(false);
+    setOwnerInfo(null);
+    setVerifyError("");
+  };
+
+  const verifyOwner = async () => {
+    if (!form.khatianNumber.trim()) { setVerifyError("Enter your Khatian number."); return; }
+    setVerifying(true);
+    setVerifyError("");
+    try {
+      const res = await fetch(`${API_BASE}/posts/verify-owner`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ khatianNumber: form.khatianNumber.trim() }),
+      });
+      const result = await res.json();
+      if (res.ok && result.success) {
+        setOwnerInfo(result.data);
+        setForm(f => ({
+          ...f,
+          registeredHouse: result.data.registeredHouse,
+          contactPhone: result.data.phoneNumber || "",
+        }));
+        setOwnerVerified(true);
+      } else {
+        throw new Error(result.message || "Could not verify Khatian number.");
+      }
+    } catch (err) {
+      setOwnerVerified(false);
+      setOwnerInfo(null);
+      setVerifyError(err.message);
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const submitPost = async () => {
     setLoading(true);
@@ -119,9 +252,14 @@ export default function Post({ go, user }) {
       // all — just make sure the request carries the session cookie
       // (`credentials: "include"` below).
 
+      // Owners: the server re-resolves the property from the Khatian number and
+      // ignores registeredHouse; students: the property they selected.
       formData.append("registeredHouse", form.registeredHouse);
-      formData.append("ownerName", user?.name || "");
-      formData.append("contactPhone", form.contactPhone); // 👉 Submits the edited state value now
+      formData.append("ownerName", displayOwnerName); // property owner, not the logged-in account
+      formData.append("contactPhone", form.contactPhone); // owner: from HomeRegister; student: typed
+      formData.append("postedAs", form.postedAs);
+      if (isOwner) formData.append("khatianNumber", form.khatianNumber.trim());
+      if (isStudent) formData.append("studentDepartment", form.studentDepartment.trim());
       formData.append("monthlyRent", form.rent);
       formData.append("gateClosedTime", form.gateCloseTime);
 
@@ -180,20 +318,111 @@ export default function Post({ go, user }) {
 
       <div className="post-content">
         <button className="back-btn" onClick={() => go("dashboard")}><IoHomeOutline /> Back to Home</button>
-        <h2 className="post-title">Post Your <span>Property</span></h2>
+        <h2 className="post-title">Post Your <span>Rentable House</span></h2>
         <p className="post-sub">Complete the steps below to submit your listing. Admin will approve before it goes live.</p>
 
         {errorMessage && (
           <div className="notice error"><FiAlertTriangle /> <span>{errorMessage}</span></div>
         )}
 
-        <div className="step-bar">
-          {STEPS.map((s, i) => {
-            const n = i + 1;
-            const cls = step === n ? "active" : step > n ? "done" : "";
-            return <div key={n} className={`step-item ${cls}`}>{step > n ? <FiCheck /> : s.icon}<span>{s.label}</span></div>;
-          })}
-        </div>
+        {step >= 1 && (
+          <div className="step-bar">
+            {STEPS.map((s, i) => {
+              const n = i + 1;
+              const cls = step === n ? "active" : step > n ? "done" : "";
+              return <div key={n} className={`step-item ${cls}`}>{step > n ? <FiCheck /> : s.icon}<span>{s.label}</span></div>;
+            })}
+          </div>
+        )}
+
+        {/* ── STEP 0 — WHO ARE YOU POSTING AS? (owners pass the Khatian gate here) ── */}
+        {step === 0 && (
+          <div className="profile-section">
+            {!isOwner && (
+              <>
+                <div className="profile-section-title">Who is posting?</div>
+                <p style={{ fontSize: ".85rem", color: "var(--gray-text)", marginBottom: "1rem" }}>
+                  Owners confirm their Khatian number first, and their property details are filled in automatically.
+                  Students enter their department and their own phone number.
+                </p>
+                <div className="photo-grid">
+                  <button type="button" className="photo-slot" style={{ cursor: "pointer" }} onClick={() => chooseRole("owner")}>
+                    <span className="slot-icon"><FaHouseChimney /></span>
+                    <span className="slot-label">I'm the property owner</span>
+                  </button>
+                  <button type="button" className="photo-slot" style={{ cursor: "pointer" }} onClick={() => chooseRole("student")}>
+                    <span className="slot-icon"><FiUser /></span>
+                    <span className="slot-label">I'm a student</span>
+                  </button>
+                </div>
+              </>
+            )}
+
+            {isOwner && (
+              <>
+                <div className="profile-section-title">Confirm you're the owner</div>
+                <p style={{ fontSize: ".85rem", color: "var(--gray-text)", marginBottom: "1rem" }}>
+                  Enter the Khatian number you used when registering your property. We'll load your property details from your registration.
+                </p>
+
+               <div className="fg">
+                <label>Khatian Number</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: ".5rem" }}>
+                  <input
+                    type="text"
+                    placeholder="Enter your Khatian number"
+                    value={form.khatianNumber}
+                    onChange={set("khatianNumber")}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !ownerVerified && !verifying) verifyOwner(); }}
+                    style={{ width: "100%" }}
+                  />
+                  <button 
+                    type="button" 
+                    onClick={verifyOwner} 
+                    disabled={verifying || ownerVerified}
+                    className="btn-submit secondary btn-icon"
+                    style={{ width: "auto", margin: 0, padding: ".75rem 2.25rem", color: "var(--red)", border: "1.5px solid var(--gray-mid)", fontSize: ".92rem" }}
+                  >
+                    {verifying ? "Checking..." : ownerVerified ? "Verified" : "Verify"}
+                  </button>
+                </div>
+                {verifyError && (
+                  <div className="notice error" style={{ marginTop: ".5rem" }}><FiAlertTriangle /> <span>{verifyError}</span></div>
+                )}
+              </div>
+                {ownerVerified && ownerInfo && (
+                  <>
+                    <div className="notice" style={{ marginBottom: ".75rem" }}>
+                      <FiCheckCircle /> <span>Verified. These details come from your registration and will be filled in on your post.</span>
+                    </div>
+                    {[
+                      [<FaHouseChimney />, "House Name", ownerInfo.housePropertyName],
+                      [<FiUser />, "Property Owner", ownerInfo.ownerFullName],
+                      [<FiPhone />, "Contact Phone", ownerInfo.phoneNumber],
+                      [<IoHomeOutline />, "Address", ownerInfo.houseAddress],
+                    ].map(([icon, k, v]) => (
+                      <div className="summary-row" key={k}>
+                        <span className="summary-key" style={{ display: "inline-flex", alignItems: "center", gap: ".5rem" }}><span style={{ color: "var(--red)", display: "flex" }}>{icon}</span>{k}</span>
+                        <span className="summary-value">{v || "—"}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                <div className="step-actions" style={{ marginTop: "1.2rem" }}>
+                  <button className="btn-submit secondary btn-icon" onClick={resetRole}><FiArrowLeft /> Back</button>
+                  <button
+                    className="btn-submit btn-icon"
+                    onClick={() => { setErrorMessage(""); next(); }}
+                    disabled={!ownerVerified}
+                  >
+                    Continue <FiArrowRight />
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* ── STEP 1 — PHOTOS ── */}
         {step === 1 && (
@@ -222,6 +451,7 @@ export default function Post({ go, user }) {
             </div>
 
             <div className="step-actions">
+              <button className="btn-submit secondary btn-icon" onClick={prev}><FiArrowLeft /> Back</button>
               <button className="btn-submit btn-icon" onClick={() => {
                 // ||!photo3
                 if (!photo1 || !photo2 ) {
@@ -243,7 +473,9 @@ export default function Post({ go, user }) {
 
             <div className="fg">
               <label>House Name</label>
-              {housesLoading ? (
+              {isOwner ? (
+                <input type="text" value={ownerInfo?.housePropertyName || ""} readOnly style={{ background: "var(--gray-bg)", color: "var(--dark)", fontWeight: 600, cursor: "not-allowed" }} />
+              ) : housesLoading ? (
                 <div style={{ fontSize: ".85rem", color: "var(--gray-text)" }}>Loading your approved properties...</div>
               ) : housesError ? (
                 <div className="notice error" style={{ marginBottom: 0 }}><FiAlertTriangle /> <span>{housesError}</span></div>
@@ -264,29 +496,47 @@ export default function Post({ go, user }) {
             {/* 👉 Removed Linked Full Address input box and Location Map view components from here */}
 
             <div className="fg">
-              <label>Posted By</label>
-              <input type="text" value={user?.name || ""} readOnly style={{ background: "var(--gray-bg)", color: "var(--dark)", fontWeight: 600, cursor: "not-allowed" }} />
+              <label>Property Owner</label>
+              <input type="text" value={
+                  displayOwnerName ||
+                  (!form.registeredHouse ? "Select a property first"
+                    : ownerLoading ? "Loading..."
+                    : ownerError ? "Owner not found" : "—")
+                } readOnly style={{ background: "var(--gray-bg)", color: "var(--dark)", fontWeight: 600, cursor: "not-allowed" }} />
             </div>
 
+            {isOwner && (
+              <div className="fg">
+                <label>House Address</label>
+                <input type="text" value={ownerInfo?.houseAddress || ""} readOnly style={{ background: "var(--gray-bg)", color: "var(--dark)", cursor: "not-allowed" }} />
+              </div>
+            )}
+
+            {isStudent && (
+              <div className="fg">
+                <label>Your Department</label>
+                <select value={form.studentDepartment} onChange={set("studentDepartment")}>
+                  <option value="">— Select your department —</option>
+                  {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+            )}
+
             <div className="fg">
-              <label>Contact Phone</label>
-              <input 
-                type="text" 
+              <label>Contact Phone{isOwner ? " (from your registration)" : ""}</label>
+              <input
+                type="text"
                 placeholder="01XXXXXXXXX"
                 value={form.contactPhone}
-                 maxLength={11}
-                  onChange={(e) => {
-                    const value = e.target.value;
-
-                    if (/^\d*$/.test(value)) {
-                      set("contactPhone")(e);
-                    }
-                  }}
-                  pattern="[0-9]{11}"
-                  title="Phone number must contain exactly 11 digits"
-                  required
-                  
-                />
+                maxLength={11}
+                readOnly={isOwner}
+                style={isOwner ? { background: "var(--gray-bg)", cursor: "not-allowed" } : undefined}
+                onChange={(e) => {
+                  if (isOwner) return;
+                  if (/^\d*$/.test(e.target.value)) set("contactPhone")(e);
+                }}
+                title="Phone number must contain exactly 11 digits"
+              />
             </div>
             <div className="fg">
               <label>Monthly Rent (৳)</label>
@@ -304,11 +554,19 @@ export default function Post({ go, user }) {
             <div className="step-actions">
               <button className="btn-submit secondary btn-icon" onClick={prev}><FiArrowLeft /> Back</button>
               <button className="btn-submit btn-icon" onClick={() => {
-                if (!form.registeredHouse || !form.rent || !form.contactPhone.trim()) {
-                  alert("Please select a property, fill in the rent, and enter a contact phone number.");
+                if (!form.registeredHouse || !form.rent) {
+                  alert("Please select a property and fill in the rent.");
                   return;
                 }
-                if(form.contactPhone.length<11){
+                if (isOwner && !ownerVerified) {
+                  setErrorMessage("Please go back and confirm your Khatian number first.");
+                  return;
+                }
+                if (isStudent && !form.studentDepartment) {
+                  setErrorMessage("Please select your department.");
+                  return;
+                }
+                if (!form.contactPhone.trim() || form.contactPhone.length < 11) {
                   setErrorMessage("Please enter a valid 11-digit phone number.");
                   return;
                 }
@@ -366,8 +624,10 @@ export default function Post({ go, user }) {
 
             {[
               [<FaHouseChimney />, "House Name",       selectedHouse?.housePropertyName || "—"],
-              [<FiUser />, "Posted by",            user?.name || "—"],
-              [<FiPhone />, "Contact Phone",    form.contactPhone || "—"], // 👉 Shows updated custom phone number string configuration
+              [<FiUser />, "Property Owner",      displayOwnerName || "—"],
+              [<FiUser />, "Posting As",        isOwner ? "Property Owner" : "Student"],
+              ...(isStudent ? [[<FiClipboard />, "Department", form.studentDepartment || "—"]] : []),
+              [<FiPhone />, "Contact Phone",    form.contactPhone || "—"],
               [<FaBangladeshiTakaSign />, "Monthly Rent",    `৳${form.rent}`],
               [<FiClock />, "Gate Closes",      form.gateCloseTime || "Not specified"],
               [<FiZap />, "24/7 Electricity", form.electricity24_7 ? "Yes" : "No"],

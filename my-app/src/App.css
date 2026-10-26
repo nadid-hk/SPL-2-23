@@ -44,6 +44,11 @@ button { font-family: 'DM Sans', sans-serif; cursor: pointer; }
   z-index: 100;
   box-shadow: 0 2px 12px rgba(0,0,0,.06);
 }
+.brand-name {
+  font-family: "Hind Siliguri", "Noto Sans Bengali", sans-serif;
+  
+}
+
 
 .nav-brand {
   display: flex;
@@ -997,3 +1002,93 @@ body.dark .leaflet-popup-content-wrapper, body.dark .leaflet-popup-tip { backgro
 
 .star { font-size: .9rem; }
 .profile-section-title svg, .reason-label svg { color: var(--red); }
+
+/* ═══════════════════════════════════════════
+   DASHBOARD FILTER BAR  (Price / Utilities / Amenities)
+   Uses only theme variables, so it follows the red theme and
+   dark mode automatically (body.dark redefines the variables).
+═══════════════════════════════════════════ */
+.filter-bar { margin: 1rem 0 1.25rem; }
+.filter-row-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.filter-menu { position: relative; }
+
+.filter-btn {
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .55rem 1rem; border-radius: 999px;
+  border: 1.5px solid var(--gray-mid);
+  background: var(--white); color: var(--dark);
+  font-family: 'DM Sans', sans-serif; font-size: .85rem; font-weight: 600;
+  transition: border-color .18s, background .18s, color .18s;
+}
+.filter-btn svg { color: var(--red); flex-shrink: 0; }
+.filter-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-hover); }
+.filter-btn.active { border-color: var(--red); background: var(--red-hover); color: var(--red); }
+
+.filter-panel {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 50;
+  min-width: 270px; max-width: 90vw; max-height: 340px; overflow-y: auto;
+  background: var(--white); color: var(--dark);
+  border: 1.5px solid var(--gray-mid); border-radius: 14px;
+  box-shadow: var(--shadow-lg); padding: .4rem;
+}
+
+.filter-option {
+  display: flex; align-items: center; gap: .65rem; width: 100%;
+  padding: .55rem .7rem; border: none; border-radius: 9px;
+  background: transparent; color: var(--dark);
+  font-family: 'DM Sans', sans-serif; font-size: .86rem; font-weight: 500; text-align: left;
+  transition: background .15s, color .15s;
+}
+.filter-option:hover { background: var(--gray-bg); }
+.filter-option.selected { background: var(--red-hover); color: var(--red); font-weight: 600; }
+
+.filter-tick {
+  width: 18px; height: 18px; flex-shrink: 0; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--gray-mid); background: var(--white); color: #fff;
+  transition: background .15s, border-color .15s;
+}
+.filter-tick.selected { background: var(--red); border-color: var(--red); }
+
+.filter-custom { border-top: 1px solid var(--gray-mid); margin: .4rem .3rem 0; padding: .7rem .4rem .35rem; }
+.filter-custom-label {
+  font-size: .72rem; font-weight: 700; color: var(--gray-text);
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: .4rem;
+}
+.filter-custom-inputs { display: flex; align-items: center; gap: .4rem; color: var(--gray-text); }
+.filter-custom-inputs input {
+  width: 100%; padding: .5rem .65rem; border-radius: 9px;
+  border: 1.5px solid var(--gray-mid); background: var(--cream); color: var(--dark);
+  font-family: 'DM Sans', sans-serif; font-size: .85rem; outline: none;
+  transition: border-color .18s, box-shadow .18s, background .18s;
+}
+.filter-custom-inputs input:focus {
+  border-color: var(--red); background: var(--white);
+  box-shadow: 0 0 0 3px rgba(176,58,46,.12);
+}
+.filter-custom-inputs input::placeholder { color: var(--gray-text); }
+.filter-error { color: var(--red); font-size: .76rem; font-weight: 600; margin-top: .35rem; }
+
+.filter-clear {
+  background: none; border: none; padding: .3rem .2rem;
+  font-size: .85rem; font-weight: 700; color: var(--red);
+}
+.filter-clear:hover { text-decoration: underline; }
+
+.filter-chips { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .8rem; }
+.filter-chip {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .28rem .45rem .28rem .75rem; border-radius: 999px;
+  background: var(--red-hover); color: var(--red);
+  border: 1px solid var(--red); font-size: .78rem; font-weight: 600;
+}
+.filter-chip-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0; border: none; border-radius: 50%;
+  background: transparent; color: inherit; transition: background .15s, color .15s;
+}
+.filter-chip-x:hover { background: var(--red); color: #fff; }
+
+@media (max-width: 640px) {
+  .filter-panel { min-width: 240px; }
+}

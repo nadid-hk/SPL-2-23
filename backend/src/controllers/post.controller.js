@@ -1,8 +1,8 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { ApiError } from "../utils/apiError.util.js";
-import { createPost, getApprovedPosts } from "../services/post.service.js";
-import { setPostRentalStatus } from "../services/post.service.js";
+import { createPost, getApprovedPosts, getApprovedPostsByPriceRange } from "../services/post.service.js";
+import { setPostRentalStatus, verifyOwnerByKhatian } from "../services/post.service.js";
 import { IUT_GATE } from "../constants.js";
 // E:\SPL-II_working_directory\backend\src\constants.js
 // E:\SPL-II_working_directory\backend\src\controllers\user.controller.js
@@ -15,13 +15,45 @@ import { IUT_GATE } from "../constants.js";
 // from the authenticated session (`req.user`), which requires `verifyJWT`
 // to run on this route (see post.route.js).
 export const createPostHandler = asyncHandler(async (req, res) => {
-    const authorId = req.user._id;
+    // postedAs / khatianNumber / studentDepartment are read from req.body
+    // as well, so they survive even if the validation schema doesn't list
+    // them yet. The service re-validates all of them.
+    const { postedAs, khatianNumber, studentDepartment } = req.body;
+    const data = {
+        ...req.validatedData,
+        postedAs,
+        khatianNumber,
+        studentDepartment,
+        contactPhone: req.validatedData?.contactPhone ?? req.body.contactPhone,
+    };
 
-    const post = await createPost(req.validatedData, authorId);
+    const post = await createPost(data, req.user);
 
     return res
         .status(201)
         .json(new ApiResponse(201, post, "Post submitted successfully. It is now pending admin approval."));
+});
+
+// POST /api/posts/verify-owner — owner re-enters the Khatian number; we look
+// it up in HomeRegister and return the details used to prefill the form.
+export const verifyOwnerHandler = asyncHandler(async (req, res) => {
+    const { khatianNumber } = req.body;
+    const house = await verifyOwnerByKhatian(null, khatianNumber);
+
+    // Everything the post form needs, straight from HomeRegister.
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                registeredHouse: house._id,
+                housePropertyName: house.housePropertyName,
+                houseAddress: house.houseAddress,
+                ownerFullName: house.ownerFullName,
+                phoneNumber: house.phoneNumber,
+            },
+            "Owner verified"
+        )
+    );
 });
 
 // GET /api/posts/approved — public/student-facing listings dashboard
@@ -50,4 +82,28 @@ export const updatePostRentalStatus = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(new ApiResponse(200, updated, `Property marked as ${isRented ? "Rented" : "Available"}.`));
+});
+
+export const filterListingsByPrice = asyncHandler(async (req, res) => {
+    const parseRent = (value, name) => {
+        if (value === undefined || value === "") return undefined;
+        const num = Number(value);
+        if (!Number.isFinite(num) || num < 0) {
+            throw new ApiError(400, `${name} must be a non-negative number.`);
+        }
+        return num;
+    };
+
+    const minRent = parseRent(req.query.minRent, "minRent");
+    const maxRent = parseRent(req.query.maxRent, "maxRent");
+
+    if (minRent !== undefined && maxRent !== undefined && minRent > maxRent) {
+        throw new ApiError(400, "minRent cannot be greater than maxRent.");
+    }
+
+    const posts = await getApprovedPostsByPriceRange({ minRent, maxRent });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, { posts, iutGate: IUT_GATE }, "Filtered listings fetched"));
 });

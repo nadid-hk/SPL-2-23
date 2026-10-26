@@ -6,6 +6,8 @@ import { RankUser } from "../models/rankUser.model.js"
 import { User } from "../models/user.model.js"
 import { HomeRegister } from "../models/homeRegister.model.js" // Imported for home owner auth/profile handling
 import jwt from "jsonwebtoken"
+import { assertOtpValid } from "./otp.controller.js";
+
 
 const cookieOptions = {
     httpOnly: true,
@@ -28,11 +30,13 @@ const generateAccessAndRefreshTokens = async (userId) => {
 // REGISTER
 // ----------------------------------------------------------------
 const registerUser = asyncHandler(async (req, res, next) => {
-    const { method, name, email, password, rank, phone } = req.body
+    const { method, name, password, rank, phone, otp } = req.body
+    const email = req.body.email?.trim().toLowerCase()
 
     if (!name || !password) {
         throw new ApiError(400, "Name and password are required")
     }
+    if (!email) throw new ApiError(400, "Email is required")
 
     let user
 
@@ -42,26 +46,31 @@ const registerUser = asyncHandler(async (req, res, next) => {
         const existingRank = await RankUser.findOne({ rank })
         if (existingRank) throw new ApiError(409, "An account with this rank already exists")
 
-        if (email) {
-            const existingEmail = await User.findOne({ email })
-            if (existingEmail) throw new ApiError(409, "An account with this email already exists")
-        }
+        const existingEmail = await User.findOne({ email })
+        if (existingEmail) throw new ApiError(409, "An account with this email already exists")
+
+        // last gate before creating: checks the code and consumes it
+        await assertOtpValid(email, otp)
 
         user = await RankUser.create({ name, password, rank, phone, email })
     } else {
-        if (!email) throw new ApiError(400, "Email is required")
-
-        const existingEmail = await EmailUser.findOne({ email })
+        const existingEmail = await User.findOne({ email })
         if (existingEmail) throw new ApiError(409, "An account with this email already exists")
+
+        await assertOtpValid(email, otp)
 
         user = await EmailUser.create({ name, password, email })
     }
 
-    const createdUser = await User.findById(user._id).select("-password -refreshToken")
+     const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
+
+    const createdUser = await User.findById(user._id).select("-password -refreshToken").lean()
 
     return res
         .status(201)
-        .json(new ApiResponse(201, createdUser, "User registered successfully"))
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", refreshToken, cookieOptions)
+        .json(new ApiResponse(201, { user: createdUser, accessToken }, "User registered successfully"))
 })
 
 // ----------------------------------------------------------------

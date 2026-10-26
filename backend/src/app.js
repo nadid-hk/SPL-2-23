@@ -9,6 +9,9 @@ import reviewRouter from "./routes/review.route.js"
 import postRouter from "./routes/post.route.js"
 import adminRouter from "./routes/admin.route.js"
 import notificationRouter from "./routes/notification.route.js"
+import otpRouter from "./routes/otp.route.js"
+import homeOwnerInfoRouter from "./routes/homeOwnerInfo.route.js"
+import filterPost from "./routes/postFilter.js";
 // ─── CHAT FEATURE (Talha) ─── chat router import
 import chatRouter from "./routes/chat.route.js"
 // ─── END CHAT FEATURE ───
@@ -34,7 +37,9 @@ app.use("/api", reviewRouter)         // /api/reviews, /api/reviews/:homeRegiste
 app.use("/api", postRouter)           // /api/posts, /api/posts/approved
 app.use("/api", adminRouter)          // /api/admin/...
 app.use("/api", notificationRouter)   // /api/notifications/...
-
+app.use("/api/otp", otpRouter)           // /api/otp/...
+app.use("/api/ownerinfo",homeOwnerInfoRouter)
+app.use("/api/filterPost", filterPost);
 // ─── CHAT FEATURE (Talha) ───
 // /api/chat/conversations, /api/chat/conversations/:conversationId/messages
 // Real-time delivery is handled separately by Socket.IO — see

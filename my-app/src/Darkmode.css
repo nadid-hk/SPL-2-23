@@ -1,5 +1,3 @@
-
-
 body.dark {
   /* Brick red — brightened so it reads on dark surfaces */
   --red:      #e0594a;
@@ -99,3 +97,9 @@ body.dark .status-btn.to-available {
   background: rgba(74,222,128,.15); color: var(--success); border-color: rgba(74,222,128,.4);
 }
 body.dark .admin-chip { background: var(--gray-bg); }
+/* ── Dashboard filter bar ── */
+body.dark .filter-panel { box-shadow: var(--shadow-lg); }
+body.dark .filter-custom-inputs input { background: var(--gray-bg); color: var(--dark); }
+body.dark .filter-custom-inputs input:focus { background: var(--white); box-shadow: 0 0 0 3px rgba(224,89,74,.2); }
+body.dark .filter-tick { background: var(--gray-bg); }
+body.dark .filter-tick.selected { background: var(--red); }

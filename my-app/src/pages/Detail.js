@@ -5,9 +5,9 @@ import LocationMap from "../components/LocationMap";
 import MessageOwnerButton from "../components/MessageOwnerButton";
 import { API_BASE } from "../config";
 // ─── END CHAT FEATURE ───
-import { CiSaveDown2 } from "react-icons/ci";
+// import { CiSaveDown2 } from "react-icons/ci";
 import { IoCall } from "react-icons/io5";
-import { FiArrowLeft, FiShare2, FiAlertTriangle, FiCheckCircle, FiZap, FiShield, FiClock, FiDroplet, FiBatteryCharging } from "react-icons/fi";
+import { FiArrowLeft, FiAlertTriangle, FiCheckCircle, FiZap, FiShield, FiClock, FiDroplet, FiBatteryCharging } from "react-icons/fi";
 import { MdOutlineElevator, MdOutlineLocalFireDepartment, MdOutlineAdminPanelSettings } from "react-icons/md";
 import { FaStar, FaBangladeshiTakaSign, FaHouseChimney } from "react-icons/fa6";
 import { BsCircleFill } from "react-icons/bs";
@@ -36,6 +36,32 @@ export default function Detail({ go, user, house }) {
   // the Post — `house.registeredHouse` is that populated document (the same
   // one `isThisOwner` below compares `.owner` against).
   const homeRegisterId = house?.registeredHouse?._id || house?.registeredHouse?.id || null;
+
+  // The listing's real owner (HomeRegister.ownerFullName). `house.ownerName`
+  // is NOT used for display: it was filled with the logged-in poster's
+  // account name, which isn't necessarily the property owner.
+  const [fetchedOwnerName, setFetchedOwnerName] = useState("");
+  const [fetchedOwnerPhone, setFetchedOwnerPhone] = useState("");
+
+  useEffect(() => {
+    if (!homeRegisterId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/ownerinfo/${homeRegisterId}/owner-info`, { credentials: "include" });
+        const data = await res.json();
+        if (!cancelled && res.ok && data.success) {
+          setFetchedOwnerName(data.data.ownerFullName || "");
+          // Only present if the owner-info endpoint returns it; otherwise the
+          // populated registeredHouse.phoneNumber is used.
+          setFetchedOwnerPhone(data.data.phoneNumber || "");
+        }
+      } catch (err) {
+        console.error("Failed to load owner info:", err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [homeRegisterId]);
 
   const [reviews, setReviews]           = useState([]);
   const [reviewStats, setReviewStats]   = useState({ averageRating: 0, reviewCount: 0 });
@@ -93,8 +119,18 @@ export default function Detail({ go, user, house }) {
   // Resolve cross-compatible property names from database model safely
   const houseName = house?.name || house?.registeredHouse?.housePropertyName || "Property Listing";
   const fullAddressStr = house?.fullAddress || house?.location || "Address not provided";
-  const displayOwnerName = house?.ownerName || house?.owner?.name || "Verified Owner";
-  const displayContactPhone = house?.contactPhone || house?.owner?.phone || "N/A";
+  const displayOwnerName = fetchedOwnerName || house?.registeredHouse?.ownerFullName || "Verified Owner";
+  // The homeowner's registered phone (HomeRegister), NOT the phone typed on
+  // the post — a student poster's number must never be shown as the owner's.
+  // Old posts without it fall back to the post's phone.
+  const displayContactPhone =
+    fetchedOwnerPhone || house?.registeredHouse?.phoneNumber || house?.contactPhone || "N/A";
+
+  // Who created the listing: the homeowner themself, or a student.
+  const postedByStudent = house?.postedAs === "student";
+  const postedByLabel = postedByStudent
+    ? `Posted by ${house?.posterName || "a student"}${house?.studentDepartment ? ` (${house.studentDepartment})` : ""}`
+    : "Posted by the homeowner";
   const monthlyRentAmount = house?.monthlyRent || house?.rent || 0;
 
   // ── FIX: compare real database IDs instead of fragile name-matching.
@@ -308,13 +344,12 @@ export default function Detail({ go, user, house }) {
         {/* GALLERY */}
         <div className="detail-gallery" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', height: '600px', marginBottom: '2rem' }}>
           <div className="gallery-main" style={{ width: '100%', height: '100%' }}>
-            <img
-              src={targetImages[0] || "/images/placeholder.jpg"}
+            <img src={targetImages[0] || "/images/placeholder.jpg"}
               alt="Main Interior"
               style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
             />
           </div>
-          <div className="gallery-sub" style={{ display: 'grid', gridTemplateRows: '1fr 1fr', gap: '10px', height: '100%' }}>
+          <div className="gallery-sub" style={{ display: 'grid', gridTemplateRows: '2fr 1fr', gap: '10px',height: '100%' }}>
             <img src={targetImages[1] || "/images/placeholder.jpg"} alt="Interior View 2" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
             {/* <img src={targetImages[2] || "/images/placeholder.jpg"} alt="Interior View 3" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /> */}
           </div>
@@ -473,11 +508,15 @@ export default function Detail({ go, user, house }) {
               <div className="contact-price-sub">per month</div>
 
               <div className="contact-info-box">
-                <div className="contact-info-label">Owner Name</div>
+                <div className="contact-info-label">Posted By</div>
+                <div className="contact-info-value">{postedByLabel}</div>
+              </div>
+              <div className="contact-info-box">
+                <div className="contact-info-label">Homeowner</div>
                 <div className="contact-info-value">{displayOwnerName}</div>
               </div>
               <div className="contact-info-box">
-                <div className="contact-info-label">Mobile Number</div>
+                <div className="contact-info-label">Homeowner's Mobile</div>
                 <div className="contact-info-value">{displayContactPhone}</div>
               </div>
 
@@ -524,11 +563,11 @@ export default function Detail({ go, user, house }) {
                   {/* ─── END CHAT FEATURE ─── */}
 {/* need to look for it and waiting for the decision */}
                   <div className="contact-actions">
-                    <button className="btn-action" onClick={() => alert("Share link copied! (demo)")}
+                    {/* <button className="btn-action" onClick={() => alert("Share link copied! (demo)")}
                       style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                       <FiShare2 style={{ fontSize: "18px", color: "var(--red)" }} /> <span>Share</span>
-                    </button>
-                   <button className="btn-action"  onClick={() => alert("Saved to favourites! (demo)")}
+                    </button> */}
+                   {/* <button className="btn-action"  onClick={() => alert("Saved to favourites! (demo)")}
                       style={{
                           display: "flex",
                           alignItems: "center",
@@ -541,7 +580,7 @@ export default function Detail({ go, user, house }) {
                               color: "var(--red)"
                           }}
                       />
-                    <span>Save</span></button>
+                    <span>Save</span></button> */}
                   </div>
                 </>
               )}

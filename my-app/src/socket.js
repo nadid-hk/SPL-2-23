@@ -1,38 +1,27 @@
-// ─── CHAT FEATURE (Talha) ────────────────────────────────────────────────
-// New file. One shared Socket.IO connection for the whole app.
+// One shared Socket.IO connection for the whole app.
 //
-// It's created lazily and reused: the navbar badge and the chat page both
-// listen on it, and opening a second connection per component would mean
-// duplicate "message:new" events and a socket left dangling on every page
-// change.
-//
-// Auth: withCredentials sends the httpOnly accessToken cookie along with the
-// handshake, which is what the server verifies (see chat.socket.js). The
-// browser never sees the raw JWT, so there is no token to pass here.
-// ─────────────────────────────────────────────────────────────────────────
+// The socket object is created once and never replaced, so listeners
+// attached by Chat and the navbar badge survive logins and logouts.
+// autoConnect is off: the handshake (which sends the httpOnly accessToken
+// cookie and decides which user this socket is) only happens when
+// connectSocket() is called.
 import { io } from "socket.io-client";
 import { API_ORIGIN } from "./config";
 
-const SOCKET_URL = API_ORIGIN;
+const socket = io(API_ORIGIN, { withCredentials: true, autoConnect: false });
 
-let socket = null;
+export const getSocket = () => socket;
 
-export function getSocket() {
-    if (socket) return socket;
-
-    socket = io(SOCKET_URL, {
-        withCredentials: true,
-        transports: ["websocket", "polling"]
-    });
-
+// Call on login and whenever the logged-in user changes. The server reads
+// the cookie at handshake time, so a reconnect is what picks up the new user.
+export const connectSocket = () => {
+    socket.disconnect();
+    socket.connect();
     return socket;
-}
+};
 
-// Called on logout so the next user doesn't inherit a socket still
+// Call on logout so the next user doesn't inherit a socket still
 // authenticated as the previous one.
-export function disconnectSocket() {
-    if (socket) {
-        socket.disconnect();
-        socket = null;
-    }
-}
+export const disconnectSocket = () => {
+    socket.disconnect();
+};

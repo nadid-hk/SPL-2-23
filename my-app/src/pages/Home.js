@@ -3,7 +3,7 @@ import Navbar from "../components/Navbar";
 
 const HEADLINES = [
   ["Welcome to the KHOJ", "Near Affordable Yours"],
-  ["Need a roommate?", "Post it on KHOJ and find your match"],
+  ["Need a roommate?", "Post it on KHOJ ","find your match"],
   ["Sign in to KHOJ and find the", "best room near your campus"],
 ];
 

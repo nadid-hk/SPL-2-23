@@ -1,10 +1,218 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Navbar from "../components/Navbar";
 import SearchMap from "../components/SearchMap";
 import { API_BASE } from "../config";
-import { FiAlertTriangle, FiUser, FiZap, FiMapPin, FiPlus } from "react-icons/fi";
+import { FiAlertTriangle, FiUser, FiZap, FiMapPin, FiPlus, FiChevronDown, FiCheck, FiX } from "react-icons/fi";
 import { FaBangladeshiTakaSign, FaPersonWalking } from "react-icons/fa6";
 import { BsCircleFill } from "react-icons/bs";
+
+// ── Filter options ──
+// `value` must match exactly what is stored in Post.utilities / Post.features
+// (and what the backend whitelist in the filter controller accepts).
+const UTILITY_OPTIONS = [
+  { key: "electricity24_7",   label: "24/7 Electricity (Backup available)", value: "24/7 Electricity" },
+  { key: "ips",               label: "IPS Available",                       value: "IPS" },
+  { key: "lift",              label: "Lift / Elevator",                     value: "Lift" },
+  { key: "security",          label: "Security Guard",                      value: "Security Guard" },
+  { key: "gas",               label: "Gas Available",                       value: "Gas" },
+  { key: "waterBillIncluded", label: "Water Bill Included in Rent",         value: "Water Bill Included" },
+];
+
+const AMENITIES = [
+  "Oven", "Fridge", "Washing Machine", "AC",
+  "Balcony", "Attached Bath", "Shared Kitchen",
+  "Wi-Fi", "Rooftop Access", "Generator",
+];
+
+const PRICE_PRESETS = [
+  { label: "Any price",         min: "",      max: "" },
+  { label: "Under ৳5,000",      min: "",      max: "5000" },
+  { label: "৳5,000 – ৳10,000",  min: "5000",  max: "10000" },
+  { label: "৳10,000 – ৳15,000", min: "10000", max: "15000" },
+  { label: "Above ৳15,000",     min: "15000", max: "" },
+];
+
+const EMPTY_FILTER = { min: "", max: "", utilities: [], features: [] };
+
+/* ── FILTER BAR ──
+   Three dropdown lists (Price / Utilities / Amenities). Clicking an item
+   applies it immediately: `filter` is the single source of truth and the
+   Dashboard refetches whenever it changes. */
+function FilterBar({ filter, setFilter }) {
+  const [openMenu, setOpenMenu] = useState(null); // "price" | "utilities" | "amenities" | null
+  const [minIn, setMinIn] = useState(filter.min);
+  const [maxIn, setMaxIn] = useState(filter.max);
+  const [priceError, setPriceError] = useState("");
+  const barRef = useRef(null);
+
+  // Close the open list when clicking anywhere outside the bar
+  useEffect(() => {
+    const onDown = (e) => {
+      if (barRef.current && !barRef.current.contains(e.target)) setOpenMenu(null);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
+
+  // Keep the custom inputs in sync when the filter changes from outside
+  // (preset click, chip removed, "Clear all")
+  useEffect(() => {
+    setMinIn(filter.min);
+    setMaxIn(filter.max);
+  }, [filter.min, filter.max]);
+
+  // Custom min/max: applied automatically shortly after the user stops typing
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (minIn !== "" && maxIn !== "" && Number(minIn) > Number(maxIn)) {
+        setPriceError("Min cannot be greater than max.");
+        return;
+      }
+      setPriceError("");
+      setFilter((f) => (f.min === minIn && f.max === maxIn ? f : { ...f, min: minIn, max: maxIn }));
+    }, 500);
+    return () => clearTimeout(t);
+  }, [minIn, maxIn, setFilter]);
+
+  const toggleIn = (key, value) =>
+    setFilter((f) => ({
+      ...f,
+      [key]: f[key].includes(value) ? f[key].filter((v) => v !== value) : [...f[key], value],
+    }));
+
+  const priceActive = filter.min !== "" || filter.max !== "";
+  const priceLabel = priceActive
+    ? `৳${filter.min || "0"} – ${filter.max ? "৳" + filter.max : "any"}`
+    : "Price";
+
+  const isFiltered = priceActive || filter.utilities.length > 0 || filter.features.length > 0;
+
+  const toggleMenu = (name) => setOpenMenu((m) => (m === name ? null : name));
+
+  // Chips for everything currently applied
+  const chips = [
+    ...(priceActive ? [{ id: "price", label: priceLabel, remove: () => setFilter((f) => ({ ...f, min: "", max: "" })) }] : []),
+    ...filter.utilities.map((v) => ({
+      id: "u-" + v,
+      label: UTILITY_OPTIONS.find((o) => o.value === v)?.label || v,
+      remove: () => toggleIn("utilities", v),
+    })),
+    ...filter.features.map((v) => ({ id: "f-" + v, label: v, remove: () => toggleIn("features", v) })),
+  ];
+
+  return (
+    <div ref={barRef} className="filter-bar">
+      <div className="filter-row-wrap">
+
+        {/* PRICE */}
+        <div className="filter-menu">
+          <button type="button" className={`filter-btn${priceActive || openMenu === "price" ? " active" : ""}`} onClick={() => toggleMenu("price")}>
+            <FaBangladeshiTakaSign /> {priceLabel} <FiChevronDown />
+          </button>
+          {openMenu === "price" && (
+            <div className="filter-panel">
+              {PRICE_PRESETS.map((p) => {
+                const selected = filter.min === p.min && filter.max === p.max;
+                return (
+                  <button
+                    type="button" key={p.label} className={`filter-option${selected ? " selected" : ""}`}
+                    onClick={() => setFilter((f) => ({ ...f, min: p.min, max: p.max }))}
+                  >
+                    <span className={`filter-tick${selected ? " selected" : ""}`}>{selected && <FiCheck size={12} />}</span>
+                    {p.label}
+                  </button>
+                );
+              })}
+              <div className="filter-custom">
+                <div className="filter-custom-label">Custom range</div>
+                <div className="filter-custom-inputs">
+                  <input
+                    type="number" min="0" placeholder="Min" value={minIn}
+                    onChange={(e) => setMinIn(e.target.value)}
+                  />
+                  <span>–</span>
+                  <input
+                    type="number" min="0" placeholder="Max" value={maxIn}
+                    onChange={(e) => setMaxIn(e.target.value)}
+                  />
+                </div>
+                {priceError && <div className="filter-error">{priceError}</div>}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* UTILITIES */}
+        <div className="filter-menu">
+          <button type="button" className={`filter-btn${filter.utilities.length > 0 || openMenu === "utilities" ? " active" : ""}`} onClick={() => toggleMenu("utilities")}>
+            <FiZap /> Utilities{filter.utilities.length > 0 && ` (${filter.utilities.length})`} <FiChevronDown />
+          </button>
+          {openMenu === "utilities" && (
+            <div className="filter-panel">
+              {UTILITY_OPTIONS.map((u) => {
+                const selected = filter.utilities.includes(u.value);
+                return (
+                  <button type="button" key={u.key} className={`filter-option${selected ? " selected" : ""}`} onClick={() => toggleIn("utilities", u.value)}>
+                    <span className={`filter-tick${selected ? " selected" : ""}`}>{selected && <FiCheck size={12} />}</span>
+                    {u.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* AMENITIES */}
+        <div className="filter-menu">
+          <button type="button" className={`filter-btn${filter.features.length > 0 || openMenu === "amenities" ? " active" : ""}`} onClick={() => toggleMenu("amenities")}>
+            Amenities{filter.features.length > 0 && ` (${filter.features.length})`} <FiChevronDown />
+          </button>
+          {openMenu === "amenities" && (
+            <div className="filter-panel">
+              {AMENITIES.map((a) => {
+                const selected = filter.features.includes(a);
+                return (
+                  <button type="button" key={a} className={`filter-option${selected ? " selected" : ""}`} onClick={() => toggleIn("features", a)}>
+                    <span className={`filter-tick${selected ? " selected" : ""}`}>{selected && <FiCheck size={12} />}</span>
+                    {a}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {isFiltered && (
+          <button
+            type="button"
+            onClick={() => setFilter(EMPTY_FILTER)}
+            className="filter-clear"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+
+      {/* Applied filters */}
+      {chips.length > 0 && (
+        <div className="filter-chips">
+          {chips.map((c) => (
+            <span
+              key={c.id}
+              className="filter-chip"
+            >
+              {c.label}
+              <button type="button" onClick={c.remove} aria-label={`Remove ${c.label}`}
+                className="filter-chip-x">
+                <FiX size={13} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Dashboard({ go, user }) {
   const handleProfileClick = () => go("profile");
@@ -14,48 +222,16 @@ export default function Dashboard({ go, user }) {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [activeId, setActiveId] = useState(null);
+  // Single filter state: every click in the FilterBar updates it and the
+  // fetch effect below runs automatically (no Apply button needed).
+  const [filter, setFilter] = useState(EMPTY_FILTER);
 
   // Re-run when the logged-in user changes (e.g. right after signup/login)
   const userId = user?._id || user?.id;
 
-  useEffect(() => {
-    // Abort the request if the user changes or the page unmounts, so a slow
-    // response from a previous session can never overwrite the new one.
-    const controller = new AbortController();
-
-    const fetchApprovedPosts = async () => {
-      setLoading(true);
-      setErrorMessage("");
-      try {
-        const res = await fetch(`${API_BASE}/posts/approved`, { signal: controller.signal });
-        const result = await res.json();
-        if (res.ok && result.success) {//  FIX: /api/posts/approved now returns { posts, iutGate }
-          // instead of a bare array (see post.controller.js) so the map
-          // card can place the gate pin without hardcoding coordinates on
-          // the frontend. Previously this did `setPosts(result.data || [])`
-          // which is why nothing ever rendered once the shape changed.
-          setPosts(result.data?.posts || []);
-          setIutGate(result.data?.iutGate || null);
-        } else {
-          throw new Error(result.message || "Could not load listings.");
-        }
-      } catch (err) {
-        if (err.name === "AbortError") return;
-        setErrorMessage(err.message);
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    };
-    fetchApprovedPosts();
-    return () => controller.abort();
-  }, [userId]);
-
-  // ── NEW: map pins built straight from Post data (not HomeRegister) —
-  // this is the fix for "the map should reflect posts, not home
-  // registrations." Every approved Post already carries its own
-  // exactLocation (copied from the registered house at post-creation time,
-  // see post.service.js) plus the pre-computed `distance` block from
-  // HouseDistance. Posts with no usable coordinates are simply skipped so a
+  // ── Map pins built straight from Post data (not HomeRegister).
+  // Every approved Post carries its own exactLocation plus the pre-computed
+  // `distance` block. Posts with no usable coordinates are skipped so a
   // bad/missing pin can't crash the map.
   const pins = useMemo(() => {
     return posts
@@ -77,22 +253,64 @@ export default function Dashboard({ go, user }) {
   }, [posts]);
 
   // SearchMap calls `go("detail", pin.id)` on pin click — Dashboard's own
-  // convention (see PostCard/HouseCard below) passes the full post object
-  // instead, so Detail.js gets everything it needs without a re-fetch.
-  // This little wrapper bridges the two without touching SearchMap itself.
+  // convention passes the full post object instead, so Detail.js gets
+  // everything it needs without a re-fetch. This wrapper bridges the two.
   const goToDetailById = (page, id) => {
     const fullPost = posts.find((p) => p._id === id);
     go(page, fullPost || id);
   };
 
-  // NOTE: "Recommended" and "Student Posts" used to be two separate mock
-  // arrays (`houses` and `studentPosts`) with different shapes. In the real
-  // backend there's only one concept — an admin-approved Post — so both
-  // sections now render from the same `posts` list. If you want a distinct
-  // "recommended for you" ranking later, that's a query/sort concern on
-  // /api/posts/approved (e.g. nearest to campus, newest first), not a
-  // separate collection.
-  // const recommended = posts.slice(0, 4);
+  // Single fetch effect: loads /posts/approved when no filter is applied,
+  // otherwise calls the combined filter endpoint (price + utilities + amenities).
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchPosts = async () => {
+      setLoading(true);
+      setErrorMessage("");
+      try {
+        const params = new URLSearchParams();
+        if (filter.min !== "") params.set("minRent", filter.min);
+        if (filter.max !== "") params.set("maxRent", filter.max);
+        if (filter.utilities.length) params.set("utilities", filter.utilities.join(","));
+        if (filter.features.length) params.set("features", filter.features.join(","));
+
+        // Router is mounted with: app.use("/api/filterPost", filterPost)
+        // and assumed to define router.get("/", filterPosts).
+        // If your route is router.get("/filter", ...), use `${API_BASE}/filterPost/filter`.
+        const FILTER_URL = `${API_BASE}/filterPost`;
+        const url = params.toString()
+          ? `${FILTER_URL}?${params}`
+          : `${API_BASE}/posts/approved`;
+
+        const res = await fetch(url, { signal: controller.signal });
+        const result = await res.json();
+
+        // 404 = filters matched nothing -> show the empty state, not an error box
+        if (res.status === 404) {
+          setPosts([]);
+          return;
+        }
+        if (res.ok && result.success) {
+          setPosts(result.data?.posts || []);
+          setIutGate(result.data?.iutGate || null);
+        } else {
+          throw new Error(result.message || "Could not load listings.");
+        }
+      } catch (err) {
+        if (err.name === "AbortError") return;
+        setErrorMessage(err.message);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+    fetchPosts();
+    return () => controller.abort();
+  }, [userId, filter]);
+
+  const isFiltered =
+    filter.min !== "" || filter.max !== "" ||
+    filter.utilities.length > 0 || filter.features.length > 0;
 
   return (
     <div className="page">
@@ -115,25 +333,9 @@ export default function Dashboard({ go, user }) {
         {/* ── HOUSE LISTINGS ── */}
         <div className="section-header">
           {/* This section will be added further if we get enough time to solve */}
-          {/* <div>
-            <div className="section-title">Recommended Houses For You</div>
-            <div className="section-bar" />
-          </div> */}
         </div>
 
-        {/* {loading ? (
-          <EmptyState msg="Loading listings..." />
-        ) : recommended.length === 0 ? (
-          <EmptyState msg="No approved listings yet — check back soon." />
-        ) : (
-          <div className="listings-grid">
-            {recommended.map(post => (
-              <HouseCard key={post._id} post={post} onClick={() => go("detail", post)} />
-            ))}
-          </div>
-        )} */}
-
-        {/* ── STUDENT POSTS + MAP CARD (Airbnb-style split view) ── */}
+        {/* ── POSTS + MAP CARD (Airbnb-style split view) ── */}
         <div className="section-header" style={{ marginTop: "3rem" }}>
           <div>
             <div className="section-title">Listing Of Houses</div>
@@ -144,10 +346,13 @@ export default function Dashboard({ go, user }) {
           </button>
         </div>
 
+        {/* FILTERS: Price / Utilities / Amenities dropdown lists, apply on click */}
+        <FilterBar filter={filter} setFilter={setFilter} />
+
         {loading ? (
           <EmptyState msg="Loading posts..." />
         ) : posts.length === 0 ? (
-          <EmptyState msg="No posts yet. Be the first to post your property!" />
+          <EmptyState msg={isFiltered ? "No listings match your filters." : "No posts yet. Be the first to post your property!"} />
         ) : (
           <div className="search-split">
             <div className="search-results-col">
@@ -212,13 +417,13 @@ function EmptyState({ msg }) {
 }
 
 /* ── HOUSE CARD ──
-   `isRented` comes from Post.isRented (the real, authoritative field —
-   it belongs on the listing itself), set via the owner's/admin's
-   "Mark as Rented / Available" action on the Detail page. */
+   `isRented` comes from Post.isRented (the real, authoritative field),
+   set via the owner's/admin's "Mark as Rented / Available" action on the
+   Detail page. */
 function HouseCard({ post, onClick }) {
   const houseName = post.registeredHouse?.housePropertyName || "Unnamed Property";
   const image = post.photos?.[0]?.url;
-  const isRented = post.isRented || false; // FIX: real field lives on Post, not registeredHouse
+  const isRented = post.isRented || false;
 
   return (
     <div className="prop-card" onClick={onClick} style={{ cursor: 'pointer' }}>
@@ -248,7 +453,7 @@ function HouseCard({ post, onClick }) {
   );
 }
 
-/* ── STUDENT POST CARD ──
+/* ── POST CARD ──
    `active` + `onHover`/`onHoverEnd` sync this card's highlight state with
    its pin on the SearchMap (hover a card -> its price pin lifts on the map,
    and vice versa via SearchMap's onActive). */
@@ -256,7 +461,7 @@ function PostCard({ post, go, active, onHover, onHoverEnd }) {
   const houseName = post.registeredHouse?.housePropertyName || "Unnamed Property";
   const image = post.photos?.[0]?.url;
   const has24_7 = post.utilities?.includes("24/7 Electricity");
-  const isRented = post.isRented || false; // FIX: real field lives on Post, not registeredHouse
+  const isRented = post.isRented || false;
   const distanceLabel =
     post.distance?.meters != null
       ? post.distance.meters < 1000
@@ -287,16 +492,17 @@ function PostCard({ post, go, active, onHover, onHoverEnd }) {
         <div className="prop-card-name">{houseName}</div>
         <div className="prop-meta">
           <div className="prop-meta-row"><FaBangladeshiTakaSign /> ৳{post.monthlyRent?.toLocaleString()} / month</div>
-          <div className="prop-meta-row"><FiUser /> Posted by: {post.ownerName}</div>
+          <div className="prop-meta-row">
+            <FiUser />{" "}
+            {post.postedAs === "student"
+              ? `Posted by: ${post.posterName || "Student"}${post.studentDepartment ? ` (${post.studentDepartment})` : ""}`
+              : `Posted by: ${post.posterName || post.ownerName || "Homeowner"} (Homeowner)`}
+          </div>
           <div className="prop-meta-row"><FiZap /> {has24_7 ? "24/7 Electricity" : "No 24/7 backup"}</div>
           {distanceLabel && (
             <div className="prop-meta-row"><FaPersonWalking /> {distanceLabel}</div>
           )}
         </div>
-        {/* FIX: this used to just alert() a few fields instead of opening
-            the real Detail page — the button never received `go` and never
-            called it. Now it navigates the same way HouseCard's "Get
-            Details" button does. */}
         <button
           className="btn-detail"
           onClick={() => go && go("detail", post)}

@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
 
+// Departments a student can post from. Shared with the validation middleware.
+export const DEPARTMENTS = ["CSE", "EEE", "MPE", "CIVIL", "BTM"];
+
 const postSchema = new mongoose.Schema(
     {
         author: {
@@ -38,11 +41,40 @@ const postSchema = new mongoose.Schema(
                 message: "An approved listing must have exactly 2 photos."
             }
         },
+        // Who created this post: the property's owner (verified by Khatian
+        // number) or a student (e.g. a departing tenant).
+        postedAs: {
+            type: String,
+            enum: ["owner", "student"],
+            required: [true, "Please specify whether you are posting as an owner or a student"],
+            index: true
+        },
+        // Display name for the post card: owner's name for owner posts,
+        // the student's account name for student posts.
+        posterName: {
+            type: String,
+            trim: true,
+            default: ""
+        },
+        // Only for student posts.
+        studentDepartment: {
+            type: String,
+            trim: true,
+            default: "",
+            validate: {
+                validator: function (val) {
+                    return this.postedAs !== "student" || DEPARTMENTS.includes(val);
+                },
+                message: `Department must be one of: ${DEPARTMENTS.join(", ")}.`
+            }
+        },
         ownerName: {
             type: String,
             required: [true, "Owner name is required"],
             trim: true
         },
+        // Owner posts: the owner's phone from HomeRegister.
+        // Student posts: the student's own phone.
         contactPhone: {
             type: String,
             required: [true, "Contact phone number is required"],

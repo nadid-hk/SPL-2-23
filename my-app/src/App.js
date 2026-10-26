@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Home         from "./pages/Home";
 import Login        from "./pages/Login";
 import Signup       from "./pages/Signup";
@@ -12,6 +12,7 @@ import { loadSession } from "./auth";
 
 // ─── CHAT FEATURE (Talha) ───
 import Chat         from "./pages/Chat";
+import { connectSocket, disconnectSocket } from "./socket";
 // ─── END CHAT FEATURE ───
 import "./App.css";
 import "./Darkmode.css";
@@ -59,22 +60,41 @@ export default function App() {
   };
 
   const handleLogin = (userData) => {
-    
     setUser(userData);
-    console.log(userData)
     if (userData?.role === "admin") {
       go("adminDashboard");
     } else {
       go("dashboard");
     }
   };
-  
-  const handleUpdateUser = (data)     => setUser(u => ({ ...u, ...data }));
 
-  const shared = { go, user };
+  const handleUpdateUser = (data) => setUser(u => ({ ...u, ...data }));
+
+  // ─── CHAT FEATURE (Talha) ───
+  // Call this from the Navbar's logout button (after the logout request and
+  // session clearing). Clearing `user` is what disconnects the chat socket.
+  const handleLogout = () => {
+    setUser(null);
+    go("home");
+  };
+  // ─── END CHAT FEATURE ───
+
+  const shared = { go, user, onLogout: handleLogout };
+
   // Changes whenever a different user logs in / signs up, forcing
   // user-specific pages to remount and refetch their data.
   const userKey = user?._id || user?.id || "guest";
+
+  // ─── CHAT FEATURE (Talha) ───
+  // (Re)connect the shared socket whenever the logged-in user changes, so the
+  // handshake always carries the current user's cookie. Without this the
+  // socket keeps the identity of whoever was logged in when it first
+  // connected, which is what produces "You are not part of this conversation."
+  useEffect(() => {
+    if (userKey !== "guest") connectSocket();
+    else disconnectSocket();
+  }, [userKey]);
+  // ─── END CHAT FEATURE ───
 
   return (
     <>

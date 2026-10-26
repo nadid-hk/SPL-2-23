@@ -1,14 +1,3 @@
-// ─── CHAT FEATURE (Talha) ────────────────────────────────────────────────
-// New file. The chat page: conversation list on the left, message thread on
-// the right. Reached via go("chat") from the navbar, or
-// go("chat", conversationId) from the "Message Owner" button on a listing.
-//
-// The list is the landing state, exactly like Messenger/WhatsApp: arriving
-// from the navbar shows *only* the list, and a thread opens when its row is
-// clicked. That click is also what marks the thread seen, and the ✕ in the
-// thread header closes it again — with nothing open, incoming messages go
-// back to counting towards the navbar badge.
-// ─────────────────────────────────────────────────────────────────────────
 import { useCallback, useEffect, useRef, useState } from "react";
 import Navbar from "../components/Navbar";
 import { chatApi } from "../chatApi";
@@ -246,9 +235,16 @@ export default function Chat({ go, user, initialConversationId = null }) {
     // The server broadcasts message:new back to us as well (we're a
     // participant), so the bubble is NOT appended here — doing both would
     // show every sent message twice.
-    getSocket().emit("message:send", { conversationId: activeId, text: body }, (ack) => {
-      if (ack && !ack.ok) setError(ack.error || "Failed to send message.");
-    });
+    getSocket().emit(
+      "message:send",
+      { conversationId: activeId, text: body },
+      (res) => {
+        if (!res?.ok) {
+          setError(res?.error || "Failed to send message");
+          setText(body); // give the text back so nothing is lost
+        }
+      }
+    );
   };
 
   const active = conversations.find((c) => conversationId(c) === activeId);
@@ -326,11 +322,15 @@ export default function Chat({ go, user, initialConversationId = null }) {
                 history is fetched for it, so nothing is marked seen. */}
             {!activeId ? (
               <section className="chat-thread chat-thread-placeholder">
-                <span className="chat-empty-icon"><FaRocketchat style={{
-        fontSize: "30px",
-        color: "#e0594a",
-        cursor: "pointer"
-    }}/></span>
+                <span className="chat-empty-icon">
+                  <FaRocketchat
+                    style={{
+                      fontSize: "30px",
+                      color: "#e0594a",
+                      cursor: "pointer"
+                    }}
+                  />
+                </span>
                 <p>Select a conversation to open it.</p>
               </section>
             ) : (

@@ -1,4 +1,4 @@
-import { Post } from "../models/post.model.js";
+import { Post, DEPARTMENTS } from "../models/post.model.js";
 import { HomeRegister } from "../models/homeRegister.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiError } from "../utils/apiError.util.js";
@@ -6,12 +6,60 @@ import { upsertHouseDistance, getHouseDistancesMap } from "./houseDistance.servi
 import { removeLocalFile } from "../utils/removeLocalFile.util.js";
 import fs from "fs";
 
-export const createPost = async (data, authorId) => {
+// Looks up the HomeRegister record for a Khatian number and confirms it is
+// the SAME property the poster selected. Used both by the "verify" endpoint
+// (to prefill the form) and again inside createPost (never trust that the
+// client verified first).
+export const verifyOwnerByKhatian = async (registeredHouseId, khatianNumber) => {
+    const khatian = String(khatianNumber || "").trim();
+    if (!khatian) throw new ApiError(400, "Khatian number is required to post as an owner.");
+
+    const house = await HomeRegister.findOne({ khatianNumber: khatian });
+    if (!house) throw new ApiError(404, "No registered property found for this Khatian number.");
+    if (house.status !== "approved") {
+        throw new ApiError(400, "This property has not been approved by an admin yet.");
+    }
+    if (registeredHouseId && house._id.toString() !== String(registeredHouseId)) {
+        throw new ApiError(400, "This Khatian number does not belong to the selected property.");
+    }
+    return house;
+};
+
+export const createPost = async (data, user) => {
+    const authorId = user._id;
     try {
-        const house = await HomeRegister.findById(data.registeredHouse);
-        if (!house) throw new ApiError(404, "Selected property does not exist");
-        if (house.status !== "approved") {
-            throw new ApiError(400, "You can only create a post for a property that an admin has approved");
+        const postedAs = data.postedAs;
+        if (!["owner", "student"].includes(postedAs)) {
+            throw new ApiError(400, "postedAs must be either 'owner' or 'student'.");
+        }
+
+        let house;
+        let contactPhone;
+        let posterName;
+        let studentDepartment = "";
+
+        if (postedAs === "owner") {
+            // The property is determined by the Khatian number alone — any
+            // client-supplied registeredHouse is ignored. Phone/name come
+            // from HomeRegister, never from the client.
+            house = await verifyOwnerByKhatian(null, data.khatianNumber);
+            contactPhone = house.phoneNumber;
+            posterName = house.ownerFullName;
+        } else {
+            house = await HomeRegister.findById(data.registeredHouse);
+            if (!house) throw new ApiError(404, "Selected property does not exist");
+            if (house.status !== "approved") {
+                throw new ApiError(400, "You can only create a post for a property that an admin has approved");
+            }
+            studentDepartment = String(data.studentDepartment || "").trim();
+            contactPhone = String(data.contactPhone || "").trim();
+            if (!DEPARTMENTS.includes(studentDepartment)) {
+                throw new ApiError(400, `Department must be one of: ${DEPARTMENTS.join(", ")}.`);
+            }
+            if (!/^\d{11}$/.test(contactPhone)) {
+                throw new ApiError(400, "A valid 11-digit phone number is required when posting as a student.");
+            }
+            posterName = user.fullName || user.name || user.username || "Student";
         }
 
         const fullAddress = house.houseAddress || "Address not specified";
@@ -27,10 +75,15 @@ export const createPost = async (data, authorId) => {
 
         const newPost = await Post.create({
             author: authorId,
-            registeredHouse: data.registeredHouse,
+            registeredHouse: house._id,
             photoLocalPaths: data.photoLocalPaths, // uploaded to Cloudinary only on approval
-            ownerName: data.ownerName,
-            contactPhone: data.contactPhone,
+            postedAs,
+            posterName,
+            studentDepartment,
+            // Always the registered property's real owner, never the client-supplied
+            // value or the logged-in account's name.
+            ownerName: house.ownerFullName,
+            contactPhone,
             monthlyRent: data.monthlyRent,
             fullAddress,
             exactLocation,
@@ -41,9 +94,9 @@ export const createPost = async (data, authorId) => {
         });
 
         try {
-            await upsertHouseDistance(data.registeredHouse, exactLocation.coordinates);
+            await upsertHouseDistance(house._id, exactLocation.coordinates);
         } catch (distanceErr) {
-            console.error("Failed to compute house distance for", data.registeredHouse, distanceErr);
+            console.error("Failed to compute house distance for", house._id, distanceErr);
         }
 
         return newPost;
@@ -68,7 +121,7 @@ export const createPost = async (data, authorId) => {
 // exactLocation coordinates with no "X min walk" context.
 export const getApprovedPosts = async () => {
     const posts = await Post.find({ status: "approved" })
-        .populate("registeredHouse", "housePropertyName houseAddress owner")
+        .populate("registeredHouse", "housePropertyName houseAddress owner ownerFullName phoneNumber")
         .sort({ createdAt: -1 })
         .lean();
 
@@ -122,4 +175,20 @@ export const setPostRentalStatus = async (postId, requestingUser, isRented) => {
     await post.save();
 
     return post;
+};
+
+export const getApprovedPostsByPriceRange = async ({ minRent, maxRent }) => {
+    const query = { status: "approved" };
+
+    const rentFilter = {};
+    if (minRent !== undefined) rentFilter.$gte = minRent;
+    if (maxRent !== undefined) rentFilter.$lte = maxRent;
+    if (Object.keys(rentFilter).length > 0) query.monthlyRent = rentFilter;
+
+    const posts = await Post.find(query)
+        .populate("registeredHouse", "housePropertyName houseAddress owner ownerFullName phoneNumber")
+        .sort({ monthlyRent: 1 }) // cheapest first
+        .lean();
+
+    return posts;
 };
