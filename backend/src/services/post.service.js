@@ -2,7 +2,6 @@ import { Post, DEPARTMENTS } from "../models/post.model.js";
 import { HomeRegister } from "../models/homeRegister.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiError } from "../utils/apiError.util.js";
-import { upsertHouseDistance, getHouseDistancesMap } from "./houseDistance.service.js";
 import { removeLocalFile } from "../utils/removeLocalFile.util.js";
 import fs from "fs";
 
@@ -93,11 +92,7 @@ export const createPost = async (data, user) => {
             reasonTenantLeft: data.reasonTenantLeft
         });
 
-        try {
-            await upsertHouseDistance(house._id, exactLocation.coordinates);
-        } catch (distanceErr) {
-            console.error("Failed to compute house distance for", house._id, distanceErr);
-        }
+        
 
         return newPost;
     } catch (error) {
@@ -127,7 +122,6 @@ export const getApprovedPosts = async () => {
 
     if (posts.length === 0) return posts;
 
-    const distanceMap = await getHouseDistancesMap(posts.map((p) => p.registeredHouse?._id));
 
     return posts.map((post) => {
         // distanceMap.get(String(post.registeredHouse._id)) instead of null for showning the distance
