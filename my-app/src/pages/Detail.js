@@ -1,39 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Navbar from "../components/Navbar";
 import LocationMap from "../components/LocationMap";
+import StayReviews from "../components/StayReviews";
+import TenantPicker from "../components/TenantPicker";
 // ─── CHAT FEATURE (Talha) ───
 import MessageOwnerButton from "../components/MessageOwnerButton";
 import { API_BASE } from "../config";
 // ─── END CHAT FEATURE ───
 // import { CiSaveDown2 } from "react-icons/ci";
 import { IoCall } from "react-icons/io5";
-import { FiArrowLeft, FiAlertTriangle, FiCheckCircle, FiZap, FiShield, FiClock, FiDroplet, FiBatteryCharging } from "react-icons/fi";
+import { FiArrowLeft, FiCheckCircle, FiZap, FiShield, FiClock, FiDroplet, FiBatteryCharging } from "react-icons/fi";
 import { MdOutlineElevator, MdOutlineLocalFireDepartment, MdOutlineAdminPanelSettings } from "react-icons/md";
 import { FaStar, FaBangladeshiTakaSign, FaHouseChimney } from "react-icons/fa6";
 import { BsCircleFill } from "react-icons/bs";
 
-// Turns a Review document's timestamp into the short relative label the
-// review cards expect ("Just now" for anything from this session, a plain
-// date otherwise).
-function formatReviewDate(createdAt) {
-  if (!createdAt) return "Just now";
-  return new Date(createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-}
-
-function Stars({ rating }) {
-  const currentRating = rating || 0;
-  return (
-    <div className="stars">
-      {[1, 2, 3, 4, 5].map(i => (
-        <FaStar key={i} className={`star${i <= Math.round(currentRating) ? "" : " empty"}`} />
-      ))}
-    </div>
-  );
-}
-
 export default function Detail({ go, user, house }) {
-  // The review system is keyed on the underlying HomeRegister property, not
-  // the Post — `house.registeredHouse` is that populated document (the same
+  // `house.registeredHouse` is the populated property document (the same
   // one `isThisOwner` below compares `.owner` against).
   const homeRegisterId = house?.registeredHouse?._id || house?.registeredHouse?.id || null;
 
@@ -63,13 +45,10 @@ export default function Detail({ go, user, house }) {
     return () => { cancelled = true; };
   }, [homeRegisterId]);
 
-  const [reviews, setReviews]           = useState([]);
-  const [reviewStats, setReviewStats]   = useState({ averageRating: 0, reviewCount: 0 });
-  const [reviewsLoading, setReviewsLoading] = useState(false);
-  const [reviewText, setReviewText]     = useState("");
-  const [selectedRating, setRating]     = useState(null);
-  const [submittingReview, setSubmittingReview] = useState(false);
-  const [reviewSubmitError, setReviewSubmitError] = useState("");
+  // Room review summary (count + overall), reported by <StayReviews> so the
+  // rating chip under the title stays in sync after a tenant posts.
+  const [flatSummary, setFlatSummary] = useState(null);
+  const handleSummary = useCallback((stats) => setFlatSummary(stats), []);
   // ── FIX: `house` here IS the Post object, and Post.isRented is the real,
   // authoritative field (it already existed on the schema). The earlier
   // nested guesses (registeredHouse.isRented / homeRegister.isRented) were
@@ -77,31 +56,7 @@ export default function Detail({ go, user, house }) {
   // underlying HomeRegister document.
   const [isRented, setIsRented] = useState(house?.isRented || false);
   const [showRentedConfirm, setShowRentedConfirm] = useState(false);
-  const [rentalUpdateError, setRentalUpdateError] = useState("");
-
-  const loadReviews = async () => {
-    if (!homeRegisterId) return;
-
-    setReviewsLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/reviews/${homeRegisterId}`);
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setReviewStats({ averageRating: data.data.averageRating, reviewCount: data.data.reviewCount });
-        setReviews(data.data.reviews || []);
-      }
-    } catch (err) {
-      // Non-fatal — the page still works, it just shows no reviews yet.
-      console.error("Failed to load reviews:", err);
-    } finally {
-      setReviewsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadReviews();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [homeRegisterId]);
+  const [rentalUpdating, setRentalUpdating] = useState(false);
 
   const handleProfileClick = () => go("profile");
 
@@ -161,74 +116,36 @@ export default function Detail({ go, user, house }) {
     house?.registeredHouse?.housePicture?.url ||
     "/images/pexels-quang-nguyen-vinh-222549-14021929.jpg";
 
-  const submitReview = async () => {
-    if (!reviewText.trim()) { alert("Please write your review first."); return; }
-    if (!selectedRating)    { alert("Please select a star rating."); return; }
-    if (!homeRegisterId) {
-      setReviewSubmitError("Couldn't determine which property to review — please refresh and try again.");
-      return;
-    }
-
-    setSubmittingReview(true);
-    setReviewSubmitError("");
-
-    try {
-      const res = await fetch(`${API_BASE}/reviews`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          homeRegisterId,
-          reviewerName: user?.name || "Anonymous",
-          rating: selectedRating,
-          comment: reviewText,
-        }),
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data?.errors?.join(", ") || data?.message || "Failed to submit review.");
-      }
-
-      setReviewText("");
-      setRating(null);
-      // Re-fetch so the list and the average rating both reflect the new
-      // review exactly as the server computed it.
-      await loadReviews();
-    } catch (err) {
-      setReviewSubmitError(err.message);
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
-
   // ── FIX: `house` IS the Post — use its own _id, and hit the post-based
   // endpoint (rental status lives on Post.isRented, not on HomeRegister).
   const postId = house?._id || house?.id;
 
-  const updateRentalStatusOnServer = async (nextIsRented) => {
+  // `tenantId` names the student renting the room (null = someone not on
+  // Khoj); the backend records the stay so that student can review later.
+  const updateRentalStatusOnServer = async (nextIsRented, tenantId = null) => {
     if (!postId) {
-      setRentalUpdateError("Could not determine which property to update.");
+      alert("Could not determine which property to update.");
       return false;
     }
+    setRentalUpdating(true);
     try {
       const res = await fetch(`${API_BASE}/posts/${postId}/rental-status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ isRented: nextIsRented }),
+        body: JSON.stringify({ isRented: nextIsRented, ...(tenantId ? { tenantId } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || "Failed to update rental status.");
       }
       setIsRented(nextIsRented);
-      setRentalUpdateError("");
       return true;
     } catch (err) {
-      setRentalUpdateError(err.message);
       alert(err.message);
       return false;
+    } finally {
+      setRentalUpdating(false);
     }
   };
 
@@ -236,11 +153,13 @@ export default function Detail({ go, user, house }) {
     setShowRentedConfirm(true);
   };
 
-  const confirmMarkRented = async () => {
-    const success = await updateRentalStatusOnServer(true);
-    setShowRentedConfirm(false);
+  const confirmMarkRented = async (tenantId) => {
+    const success = await updateRentalStatusOnServer(true, tenantId);
     if (success) {
-      alert("Property marked as Rented.\n\nStudents will see it as unavailable.");
+      setShowRentedConfirm(false);
+      alert(tenantId
+        ? "Marked as Rented. Your tenant can now review the room and you."
+        : "Marked as Rented. Students will see it as unavailable.");
     }
   };
 
@@ -323,23 +242,14 @@ export default function Detail({ go, user, house }) {
           )}
         </div>
 
-        {/* RENTED CONFIRMATION DIALOG */}
+        {/* RENTED: ask who the tenant is */}
         {showRentedConfirm && (
-          <div className="notice warn" style={{ alignItems: "center", flexWrap: "wrap" }}>
-            <FiAlertTriangle />
-            <div style={{ flex: 1 }}>
-              <strong>Confirm:</strong> This will mark your property as <strong>Rented</strong>.
-              Students browsing the dashboard will see it as unavailable.
-            </div>
-            <div style={{ display: "flex", gap: ".6rem" }}>
-              <button className="status-btn" style={{ background: "var(--red)", color: "#fff", borderColor: "var(--red)" }} onClick={confirmMarkRented}>
-                Yes, Mark Rented
-              </button>
-              <button className="status-btn" style={{ background: "var(--gray-bg)", color: "var(--dark)", borderColor: "var(--gray-mid)" }} onClick={() => setShowRentedConfirm(false)}>
-                Cancel
-              </button>
-            </div>
-          </div>
+          <TenantPicker
+            postId={postId}
+            busy={rentalUpdating}
+            onConfirm={confirmMarkRented}
+            onCancel={() => setShowRentedConfirm(false)}
+          />
         )}
 
         {/* Rented banner for students */}
@@ -375,8 +285,12 @@ export default function Detail({ go, user, house }) {
           <div>
             <h1 className="detail-title">{houseName}</h1>
             <div className="rating-row">
-              <span className="rating-chip">{reviewStats.reviewCount > 0 ? reviewStats.averageRating : "New"}</span>
-              <span style={{ fontSize: ".85rem", color: "var(--gray-text)" }}>{reviewStats.reviewCount} reviews</span>
+              <span className="rating-chip">
+                {flatSummary?.count > 0 ? <><FaStar aria-hidden="true" /> {flatSummary.overall.toFixed(1)}</> : "New"}
+              </span>
+              <span style={{ fontSize: ".85rem", color: "var(--gray-text)" }}>
+                {flatSummary?.count || 0} tenant review{flatSummary?.count === 1 ? "" : "s"}
+              </span>
               <span style={{ color: "var(--gray-mid)" }}>•</span>
               <span style={{ fontSize: ".85rem", color: "var(--gray-text)" }}>{fullAddressStr}</span>
             </div>
@@ -433,86 +347,14 @@ export default function Detail({ go, user, house }) {
               </div>
             </div>
 
-            {/* REVIEWS */}
-            <div className="detail-section">
-              <div className="detail-section-title">
-                Reviews {reviewStats.reviewCount > 0 ? `(${reviewStats.averageRating} / 5)` : ""}
-              </div>
-
-              {reviewsLoading && (
-                <p style={{ fontSize: ".85rem", color: "var(--gray-text)", marginBottom: "1rem" }}>
-                  Loading reviews...
-                </p>
-              )}
-
-              {!reviewsLoading && reviews.length === 0 && (
-                <p style={{ fontSize: ".85rem", color: "var(--gray-text)", marginBottom: "1rem" }}>
-                  No reviews yet. Be the first to review!
-                </p>
-              )}
-
-              {reviews.map(r => (
-                <div className="review-card" key={r._id || r.id}>
-                  <div className="review-header">
-                    <div className="review-avatar">{(r.reviewerName?.[0] || "A").toUpperCase()}</div>
-                    <div>
-                      <div className="review-author">{r.reviewerName}</div>
-                      <div className="review-date">{formatReviewDate(r.createdAt)}</div>
-                    </div>
-                    <div style={{ marginLeft: "auto" }}>
-                      <Stars rating={r.rating} />
-                    </div>
-                  </div>
-                  <p className="review-text">"{r.comment}"</p>
-                </div>
-              ))}
-
-              {/* FIX: reviews are a tenant/student feature. The old check
-                  (`!isThisOwner`) only hid the form from the owner of THIS
-                  specific listing — any homeowner browsing someone else's
-                  property (or an admin) still saw the review form. Gate on
-                  `isStudent` instead so no owner account, and no admin
-                  account, can ever submit a review. */}
-              {isStudent && (
-                <>
-                  <div className="divider" />
-                  <div className="detail-section-title" style={{ fontSize: ".9rem", marginBottom: ".75rem" }}>
-                    Write a Review
-                  </div>
-
-                  <div style={{ marginBottom: ".75rem" }}>
-                    <div style={{ fontSize: ".8rem", fontWeight: 600, marginBottom: ".5rem" }}>Select Rating:</div>
-                    <div className="rating-selector">
-                      {[1, 2, 3, 4, 5].map(r => (
-                        <button
-                          key={r}
-                          className={`rating-opt${selectedRating === r ? " selected" : ""}`}
-                          onClick={() => setRating(r)}
-                        >
-                          {r}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="fg">
-                    <textarea
-                      placeholder="Share your experience about this property..."
-                      value={reviewText}
-                      onChange={e => setReviewText(e.target.value)}
-                    />
-                  </div>
-
-                  {reviewSubmitError && (
-                    <div className="notice error"><FiAlertTriangle /> <span>{reviewSubmitError}</span></div>
-                  )}
-
-                  <button className="btn-post-review" onClick={submitReview} disabled={submittingReview}>
-                    {submittingReview ? "Posting..." : "Post Review"}
-                  </button>
-                </>
-              )}
-            </div>
+            {/* REVIEWS: room + owner. Only students can write, and the
+                backend further limits it to the tenant the owner confirmed. */}
+            <StayReviews
+              postId={postId}
+              user={user}
+              canWrite={isStudent && Boolean(user?._id)}
+              onSummary={handleSummary}
+            />
           </div>
 
           {/* RIGHT COLUMN — CONTACT CARD */}
@@ -575,6 +417,18 @@ export default function Detail({ go, user, house }) {
                       viewer is the owner), so no extra condition is needed
                       here. */}
                   <MessageOwnerButton go={go} user={user} house={house} />
+                  {/* Roommate ads: the student who posted lives there, so
+                      a would-be roommate can talk to them too. Hidden for
+                      the poster themself (the button hides on self). */}
+                  {postedByStudent && (
+                    <MessageOwnerButton
+                      go={go}
+                      user={user}
+                      house={house}
+                      recipientId={house?.author?._id || house?.author}
+                      label={`Message ${house?.posterName || "the student"}`}
+                    />
+                  )}
                   {/* ─── END CHAT FEATURE ─── */}
 {/* need to look for it and waiting for the decision */}
                   <div className="contact-actions">

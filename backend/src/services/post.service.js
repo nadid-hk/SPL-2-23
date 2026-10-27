@@ -3,6 +3,8 @@ import { HomeRegister } from "../models/homeRegister.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiError } from "../utils/apiError.util.js";
 import { removeLocalFile } from "../utils/removeLocalFile.util.js";
+import { startTenancy, endActiveTenancy } from "./tenancy.service.js";
+import { attachFlatRatings } from "./stayReview.service.js";
 import fs from "fs";
 
 // Looks up the HomeRegister record for a Khatian number and confirms it is
@@ -123,7 +125,7 @@ export const getApprovedPosts = async () => {
     if (posts.length === 0) return posts;
 
 
-    return posts.map((post) => {
+    const withDistance = posts.map((post) => {
         // distanceMap.get(String(post.registeredHouse._id)) instead of null for showning the distance
         const d = post.registeredHouse ? null : null;
         return {
@@ -138,6 +140,8 @@ export const getApprovedPosts = async () => {
                 : null,
         };
     });
+
+    return attachFlatRatings(withDistance);
 };
 
 // ── NEW: Post.isRented already existed on the schema — it's the correct,
@@ -145,8 +149,12 @@ export const getApprovedPosts = async () => {
 // (a HomeRegister property could in principle be re-posted later, so the
 // rented flag belongs on the Post/listing, not on the underlying
 // registration). This replaces the earlier HomeRegister-based toggle.
-export const setPostRentalStatus = async (postId, requestingUser, isRented) => {
-    const post = await Post.findById(postId).populate("registeredHouse", "owner");
+// `tenantId` (optional, only with isRented = true) names the student who is
+// renting; that confirmed stay is what lets the student review the listing.
+// Without it the listing is marked Rented with no tenancy (someone not on
+// Khoj). Marking Available ends any open tenancy.
+export const setPostRentalStatus = async (postId, requestingUser, isRented, tenantId) => {
+    const post = await Post.findById(postId).populate("registeredHouse", "owner ownerGroupId housePropertyName");
 
     if (!post) {
         throw new ApiError(404, "Post not found.");
@@ -163,6 +171,15 @@ export const setPostRentalStatus = async (postId, requestingUser, isRented) => {
 
     if (!isOwner && !isAdmin) {
         throw new ApiError(403, "You are not authorized to update this property's rental status.");
+    }
+
+    if (isRented && tenantId) {
+        if (!isOwner) {
+            throw new ApiError(403, "Only the owner of this property can confirm a tenant.");
+        }
+        await startTenancy(post, requestingUser, tenantId);
+    } else {
+        await endActiveTenancy(post._id);
     }
 
     post.isRented = Boolean(isRented);
@@ -184,5 +201,5 @@ export const getApprovedPostsByPriceRange = async ({ minRent, maxRent }) => {
         .sort({ monthlyRent: 1 }) // cheapest first
         .lean();
 
-    return posts;
+    return attachFlatRatings(posts);
 };

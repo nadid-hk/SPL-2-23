@@ -20,6 +20,7 @@ const notificationSchema = new mongoose.Schema(
                 "home_register_rejected",
                 "post_approved",
                 "post_rejected",
+                "tenancy_confirmed",
                 "admin_message"
             ],
             default: "admin_message"

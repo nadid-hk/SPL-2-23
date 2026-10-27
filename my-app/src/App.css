@@ -1092,3 +1092,138 @@ body.dark .leaflet-popup-content-wrapper, body.dark .leaflet-popup-tip { backgro
 @media (max-width: 640px) {
   .filter-panel { min-width: 240px; }
 }
+/* ── TWO-TIER REVIEWS (room + owner) ──
+   Only theme variables are used, so body.dark needs no extra rules. */
+.sr-muted { font-size: 0.85rem; color: var(--gray-text); }
+.sr-heading { font-family: 'Sora', sans-serif; font-size: 0.95rem; font-weight: 700; margin-bottom: 0.9rem; }
+
+.sr-summary { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1.5rem; }
+.sr-room { min-width: 0; }
+.sr-owner { padding-left: 1.5rem; border-left: 1.5px solid var(--gray-mid); }
+
+.sr-overall { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 1.1rem; }
+.sr-overall-num {
+  font-family: 'Sora', sans-serif; font-size: 2.6rem; font-weight: 800; line-height: 1;
+  color: var(--dark); letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.sr-overall-sm { font-size: 1.6rem; }
+.sr-overall .sr-muted { display: block; margin-top: 2px; }
+
+.sr-stars { display: inline-flex; gap: 2px; color: var(--gray-mid); }
+.sr-stars .on { color: var(--red); }
+.sr-stars-sm { font-size: 0.85rem; }
+.sr-stars-md { font-size: 1rem; }
+
+/* The scorecard: six thin bars, two per row on wide screens */
+.sr-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem 1.5rem; }
+.sr-bar dt { font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; }
+.sr-bar dd { display: flex; align-items: center; gap: 0.6rem; }
+.sr-track { flex: 1; height: 5px; border-radius: 3px; background: var(--gray-bg); overflow: hidden; }
+.sr-track > span { display: block; height: 100%; background: var(--red); border-radius: 3px; }
+.sr-bar-num { font-size: 0.8rem; font-weight: 700; min-width: 1.8rem; text-align: right; font-variant-numeric: tabular-nums; }
+
+.sr-owner-id { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.8rem; font-size: 0.9rem; }
+.sr-owner-score { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem; }
+
+.sr-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; object-fit: cover;
+  background: var(--red-hover); color: var(--red);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: 'Sora', sans-serif; font-size: 0.8rem; font-weight: 800;
+}
+.sr-avatar-lg { width: 42px; height: 42px; font-size: 1rem; }
+
+.sr-tabs { display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem; border-bottom: 1.5px solid var(--gray-mid); }
+.sr-tabs button {
+  background: none; border: none; padding: 0.55rem 0.2rem; margin-right: 1rem; margin-bottom: -1.5px;
+  font-size: 0.85rem; font-weight: 600; color: var(--gray-text); border-bottom: 2px solid transparent;
+}
+.sr-tabs button.on { color: var(--red); border-bottom-color: var(--red); }
+.sr-tabs button:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+.sr-list { display: flex; flex-direction: column; gap: 0.8rem; }
+.sr-card { background: var(--gray-bg); border: 1px solid var(--gray-mid); border-radius: 12px; padding: 1rem; }
+.sr-card-head { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.55rem; }
+.sr-card-who { display: flex; flex-direction: column; min-width: 0; }
+.sr-card-who strong { font-size: 0.86rem; }
+.sr-card-who span { font-size: 0.74rem; color: var(--gray-text); }
+.sr-card-score {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
+  font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.85rem; color: var(--red);
+}
+.sr-card-note { font-size: 0.74rem; color: var(--gray-text); margin-bottom: 0.4rem; }
+.sr-card-text { font-size: 0.86rem; line-height: 1.6; color: var(--dark); white-space: pre-line; }
+.sr-card-text.sr-muted { font-style: italic; color: var(--gray-text); }
+
+.sr-write { margin-top: 1.4rem; padding-top: 1.2rem; border-top: 1.5px solid var(--gray-mid); }
+.sr-cta p { font-size: 0.88rem; margin-bottom: 0.2rem; }
+.sr-cta .btn-post-review { display: inline-flex; align-items: center; gap: 0.4rem; }
+.sr-saved { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; font-weight: 600; color: var(--success); margin-bottom: 0.4rem; }
+
+.sr-form fieldset { border: none; margin-bottom: 1.2rem; }
+.sr-form legend { font-family: 'Sora', sans-serif; font-size: 0.95rem; font-weight: 700; margin-bottom: 0.6rem; }
+.sr-input-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.35rem 0; border-bottom: 1px dashed var(--gray-mid);
+}
+.sr-input-label { font-size: 0.86rem; }
+.sr-input-stars { display: inline-flex; gap: 2px; }
+.sr-input-stars button {
+  background: none; border: none; padding: 4px; font-size: 1.25rem; line-height: 1;
+  color: var(--gray-mid); border-radius: 6px; transition: color 0.12s, transform 0.12s;
+}
+.sr-input-stars button.on { color: var(--red); }
+.sr-input-stars button:active { transform: scale(0.88); }
+.sr-input-stars button:focus-visible { outline: 2px solid var(--red); outline-offset: 1px; }
+.sr-textarea { display: block; margin-top: 0.8rem; }
+.sr-textarea span { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; }
+.sr-textarea textarea {
+  width: 100%; min-height: 84px; resize: vertical; padding: 0.7rem 0.8rem; border-radius: 10px;
+  border: 1.5px solid var(--gray-mid); background: var(--white); color: var(--dark);
+  font-family: 'DM Sans', sans-serif; font-size: 0.86rem; line-height: 1.5;
+}
+.sr-textarea textarea:focus { outline: none; border-color: var(--red); }
+.sr-form-actions, .tp-actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.sr-form-actions .btn-post-review, .tp-actions .btn-post-review { margin-top: 0; }
+.btn-post-review:disabled { opacity: 0.55; cursor: not-allowed; }
+.sr-cancel {
+  padding: 0.6rem 1.2rem; border-radius: 10px; border: 1.5px solid var(--gray-mid);
+  background: transparent; color: var(--dark); font-weight: 600; font-size: 0.86rem;
+}
+.sr-cancel:hover { border-color: var(--dark); }
+
+/* Tenant picker (owner marks a listing Rented) */
+.tp {
+  background: var(--white); border: 1.5px solid var(--red); border-radius: 14px;
+  padding: 1.2rem 1.3rem; margin: 0.75rem 0 1.25rem; box-shadow: var(--shadow);
+}
+.tp-head { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+.tp-head > svg { color: var(--red); font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
+.tp-head h3 { font-family: 'Sora', sans-serif; font-size: 1rem; margin-bottom: 0.2rem; }
+.tp-head p { font-size: 0.84rem; color: var(--gray-text); }
+.tp-options { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+.tp-option {
+  display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.8rem; cursor: pointer;
+  border: 1.5px solid var(--gray-mid); border-radius: 10px; background: var(--white);
+}
+.tp-option.on { border-color: var(--red); background: var(--red-hover); }
+.tp-option input { accent-color: var(--red); }
+.tp-option:focus-within { outline: 2px solid var(--red); outline-offset: 1px; }
+.tp-who { display: flex; flex-direction: column; min-width: 0; }
+.tp-who strong { font-size: 0.88rem; }
+.tp-who span { font-size: 0.76rem; color: var(--gray-text); overflow: hidden; text-overflow: ellipsis; }
+.tp-avatar-none { background: var(--gray-bg); color: var(--gray-text); }
+
+/* Room score on listing cards */
+.prop-rating svg { color: var(--red); }
+.prop-rating strong { color: var(--dark); }
+.prop-rating-new svg { color: var(--gray-mid); }
+
+@media (max-width: 760px) {
+  .sr-summary { grid-template-columns: 1fr; }
+  .sr-owner { padding-left: 0; border-left: none; padding-top: 1.2rem; border-top: 1.5px solid var(--gray-mid); }
+  .sr-bars { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sr-input-stars button { transition: none; }
+}

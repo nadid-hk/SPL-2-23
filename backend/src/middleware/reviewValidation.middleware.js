@@ -1,30 +1,42 @@
-export const validateReview = (req, res, next) => {
-    const { homeRegisterId, reviewerName, rating, comment } = req.body;
+import { FLAT_CATEGORIES } from "../models/flatReview.model.js";
 
+const MAX_COMMENT = 1000;
+
+const toStars = (value) => {
+    const n = Number(value);
+    return Number.isInteger(n) && n >= 1 && n <= 5 ? n : null;
+};
+
+// Checks the two-part review body: six room ratings, a room comment, the
+// owner rating and an owner comment. Comments are optional.
+export const validateStayReview = (req, res, next) => {
+    const { ratings = {}, comment = "", ownerRating, ownerComment = "" } = req.body || {};
     const errors = [];
 
-    if (!homeRegisterId?.trim()) errors.push("homeRegisterId is required");
-    if (!reviewerName?.trim()) errors.push("Reviewer name is required");
-
-    const numericRating = Number(rating);
-    if (rating === undefined || rating === null || rating === "" || isNaN(numericRating) || numericRating < 1 || numericRating > 5) {
-        errors.push("Rating must be a number between 1 and 5");
+    const cleanRatings = {};
+    for (const { key, label } of FLAT_CATEGORIES) {
+        const stars = toStars(ratings[key]);
+        if (stars === null) errors.push(`Rate ${label} from 1 to 5 stars`);
+        else cleanRatings[key] = stars;
     }
 
+    const cleanOwnerRating = toStars(ownerRating);
+    if (cleanOwnerRating === null) errors.push("Rate the owner from 1 to 5 stars");
+
+    const roomText = String(comment).trim();
+    const ownerText = String(ownerComment).trim();
+    if (roomText.length > MAX_COMMENT) errors.push(`The room review can be at most ${MAX_COMMENT} characters`);
+    if (ownerText.length > MAX_COMMENT) errors.push(`The owner review can be at most ${MAX_COMMENT} characters`);
+
     if (errors.length > 0) {
-        return res.status(400).json({
-            success: false,
-            message: "Validation failed",
-            errors
-        });
+        return res.status(400).json({ success: false, message: errors[0], errors });
     }
 
     req.validatedReview = {
-        homeRegisterId: homeRegisterId.trim(),
-        reviewerName: reviewerName.trim(),
-        rating: numericRating,
-        comment: comment?.trim() || ""
+        ratings: cleanRatings,
+        comment: roomText,
+        ownerRating: cleanOwnerRating,
+        ownerComment: ownerText
     };
-
     next();
 };

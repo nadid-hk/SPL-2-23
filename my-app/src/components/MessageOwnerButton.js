@@ -10,13 +10,15 @@ import { useState } from "react";
 import { chatApi } from "../chatApi";
 import { FaRocketchat } from "react-icons/fa";
 
-export default function MessageOwnerButton({ go, user, house }) {
+// `recipientId` / `label` let the same button message someone other than the
+// owner, e.g. the student who posted a roommate ad.
+export default function MessageOwnerButton({ go, user, house, recipientId, label = "Message Owner" }) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
 
-  // The listing owner's real User id — the same field Detail.js compares
-  // against user._id to decide whether the viewer owns this property.
-  const ownerId = house?.registeredHouse?.owner;
+  // Defaults to the listing owner's real User id — the same field Detail.js
+  // compares against user._id to decide whether the viewer owns this property.
+  const ownerId = recipientId || house?.registeredHouse?.owner;
   const postId = house?._id || house?.id;
 
   // Hide the button when there's nobody to message: logged out, no owner
@@ -60,7 +62,7 @@ export default function MessageOwnerButton({ go, user, house }) {
         ) : (
             <>
                 <FaRocketchat style={{ fontSize: "20px" }} />
-                Message Owner
+                {label}
             </>
         )}
     </button></div>

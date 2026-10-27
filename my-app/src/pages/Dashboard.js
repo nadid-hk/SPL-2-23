@@ -39,7 +39,27 @@ const POST_TYPE_OPTIONS = [
   { value: "owner",   label: "House Rent Post" },
 ];
 
-const EMPTY_FILTER = { postType: "", min: "", max: "", utilities: [], features: [] };
+// Listing status. "available" is the default view: rented posts stay hidden,
+// except the viewer's own (so the owner can mark them Available again).
+const STATUS_OPTIONS = [
+  { value: "all",       label: "All" },
+  { value: "available", label: "Available" },
+  { value: "rented",    label: "Rented" },
+];
+const DEFAULT_STATUS = "available";
+
+const EMPTY_FILTER = { postType: "", status: DEFAULT_STATUS, min: "", max: "", utilities: [], features: [] };
+
+/* True if the logged-in user is the post's author (Post.author) or the
+   registered property's owner (Post.registeredHouse.owner, the same field the
+   backend's setPostRentalStatus checks). Lets them still see a rented post so
+   the owner can mark it Available again. Handles plain ids and populated objects. */
+const toId = (v) => (v && typeof v === "object" ? String(v._id || v.id || "") : v ? String(v) : "");
+function isPostMine(post, userId) {
+  if (!userId) return false;
+  const me = String(userId);
+  return toId(post?.author) === me || toId(post?.registeredHouse?.owner) === me;
+}
 
 /* ── FILTER BAR ──
    Three dropdown lists (Price / Utilities / Amenities). Clicking an item
@@ -95,13 +115,17 @@ function FilterBar({ filter, setFilter }) {
   const postTypeActive = filter.postType !== "";
   const postTypeLabel = POST_TYPE_OPTIONS.find((o) => o.value === filter.postType)?.label || "Post Type";
 
-  const isFiltered = postTypeActive || priceActive || filter.utilities.length > 0 || filter.features.length > 0;
+  const statusActive = filter.status !== DEFAULT_STATUS;
+  const statusLabel = STATUS_OPTIONS.find((o) => o.value === filter.status)?.label || "Available";
+
+  const isFiltered = postTypeActive || statusActive || priceActive || filter.utilities.length > 0 || filter.features.length > 0;
 
   const toggleMenu = (name) => setOpenMenu((m) => (m === name ? null : name));
 
   // Chips for everything currently applied
   const chips = [
     ...(postTypeActive ? [{ id: "type", label: postTypeLabel, remove: () => setFilter((f) => ({ ...f, postType: "" })) }] : []),
+    ...(statusActive ? [{ id: "status", label: `Status: ${statusLabel}`, remove: () => setFilter((f) => ({ ...f, status: DEFAULT_STATUS })) }] : []),
     ...(priceActive ? [{ id: "price", label: priceLabel, remove: () => setFilter((f) => ({ ...f, min: "", max: "" })) }] : []),
     ...filter.utilities.map((v) => ({
       id: "u-" + v,
@@ -128,6 +152,29 @@ function FilterBar({ filter, setFilter }) {
                   <button
                     type="button" key={o.label} className={`filter-option${selected ? " selected" : ""}`}
                     onClick={() => { setFilter((f) => ({ ...f, postType: o.value })); setOpenMenu(null); }}
+                  >
+                    <span className={`filter-tick${selected ? " selected" : ""}`}>{selected && <FiCheck size={12} />}</span>
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* STATUS (All / Available / Rented) */}
+        <div className="filter-menu">
+          <button type="button" className={`filter-btn${statusActive || openMenu === "status" ? " active" : ""}`} onClick={() => toggleMenu("status")}>
+            <BsCircleFill size={8} /> Status: {statusLabel} <FiChevronDown />
+          </button>
+          {openMenu === "status" && (
+            <div className="filter-panel">
+              {STATUS_OPTIONS.map((o) => {
+                const selected = filter.status === o.value;
+                return (
+                  <button
+                    type="button" key={o.value} className={`filter-option${selected ? " selected" : ""}`}
+                    onClick={() => { setFilter((f) => ({ ...f, status: o.value })); setOpenMenu(null); }}
                   >
                     <span className={`filter-tick${selected ? " selected" : ""}`}>{selected && <FiCheck size={12} />}</span>
                     {o.label}
@@ -266,19 +313,33 @@ export default function Dashboard({ go, user }) {
   // Admins can review listings but are not allowed to create posts
   const isAdmin = String(user?.role || "").toLowerCase() === "admin" || user?.isAdmin === true;
 
+  // ── Visible posts (applied on the client on top of whatever the server returned):
+  //  1. Status filter:
+  //     - Available (default): rented posts are hidden from students / other
+  //       users. Only the poster (who needs to mark it Available again) and
+  //       admins still see them.
+  //     - Rented: only rented posts.
+  //     - All: every post, rented or not.
+  //  2. Post-type filter (Roommate = student posts, House Rent = owner posts).
+  // Both the cards and the map pins are built from this list, so a hidden
+  // post disappears from the map too.
+  const visiblePosts = useMemo(() => {
+    return posts.filter((p) => {
+      if (filter.status === "rented" && !p.isRented) return false;
+      if (filter.status === "available" && p.isRented) {
+        if (!isPostMine(p, userId) && !isAdmin) return false;
+      }
+      if (!filter.postType) return true;
+      return filter.postType === "student"
+        ? p.postedAs === "student"
+        : p.postedAs !== "student";
+    });
+  }, [posts, filter.status, filter.postType, userId, isAdmin]);
+
   // ── Map pins built straight from Post data (not HomeRegister).
   // Every approved Post carries its own exactLocation plus the pre-computed
   // `distance` block. Posts with no usable coordinates are skipped so a
   // bad/missing pin can't crash the map.
-  // Post-type filter (Roommate = student posts, House Rent = owner posts),
-  // applied on the client on top of whatever the server returned.
-  const visiblePosts = useMemo(() => {
-    if (!filter.postType) return posts;
-    return posts.filter((p) =>
-      filter.postType === "student" ? p.postedAs === "student" : p.postedAs !== "student"
-    );
-  }, [posts, filter.postType]);
-
   const pins = useMemo(() => {
     return visiblePosts
       .filter((p) => Array.isArray(p.exactLocation?.coordinates) && p.exactLocation.coordinates.length === 2)
@@ -352,10 +413,13 @@ export default function Dashboard({ go, user }) {
     };
     fetchPosts();
     return () => controller.abort();
-  }, [userId, filter]);
+    // Status and post type are applied on the client (visiblePosts), so
+    // changing them doesn't refetch.
+  }, [userId, filter.min, filter.max, filter.utilities, filter.features]);
 
   const isFiltered =
     filter.postType !== "" ||
+    filter.status !== DEFAULT_STATUS ||
     filter.min !== "" || filter.max !== "" ||
     filter.utilities.length > 0 || filter.features.length > 0;
 

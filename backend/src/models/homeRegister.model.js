@@ -33,8 +33,8 @@ const homeRegisterSchema = new mongoose.Schema(
         //   never supplies this value directly — same trust boundary as
         //   the `owner` id fix above.
         //
-        // This is what lets review.service.js pull a combined review
-        // history across every property owned by the same person.
+        // This is what lets owner ratings (OwnerReview, stayReview.service.js)
+        // combine across every property owned by the same person.
         ownerGroupId: {
             type: mongoose.Schema.Types.ObjectId,
             required: true,

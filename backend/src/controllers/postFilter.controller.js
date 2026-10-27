@@ -1,4 +1,5 @@
 import { Post } from "../models/post.model.js";
+import { attachFlatRatings } from "../services/stayReview.service.js";
 
 // Whitelists: must match the values the Dashboard sends (and what Post stores).
 const ALLOWED_UTILITIES = [
@@ -67,7 +68,7 @@ export const filterPosts = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ success: true, data: { posts, iutGate } });
+    return res.status(200).json({ success: true, data: { posts: await attachFlatRatings(posts), iutGate } });
   } catch (err) {
     console.error("filterPosts error:", err);
     return res.status(500).json({ success: false, message: "Could not filter listings." });

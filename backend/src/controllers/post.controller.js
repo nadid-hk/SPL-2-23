@@ -71,13 +71,13 @@ export const getListings = asyncHandler(async (req, res) => {
 // PATCH /api/posts/:id/rental-status
 export const updatePostRentalStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { isRented } = req.body;
- 
+    const { isRented, tenantId } = req.body;
+
     if (typeof isRented !== "boolean") {
         throw new ApiError(400, "isRented must be a boolean (true or false).");
     }
- 
-    const updated = await setPostRentalStatus(id, req.user, isRented);
+
+    const updated = await setPostRentalStatus(id, req.user, isRented, tenantId);
  
     return res
         .status(200)

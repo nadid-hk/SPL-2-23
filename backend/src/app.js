@@ -33,7 +33,7 @@ app.use("/api/v1/users", profileRouter)
 app.use("/api/v1/users", userRouter)
 
 app.use("/api", homeRegisterRouter)   // /api/home-register, /api/home-register/approved, /api/home-register/lookup/:khatianNumber
-app.use("/api", reviewRouter)         // /api/reviews, /api/reviews/:homeRegisterId
+app.use("/api", reviewRouter)         // /api/posts/:id/reviews, /api/posts/:id/tenant-candidates
 app.use("/api", postRouter)           // /api/posts, /api/posts/approved
 app.use("/api", adminRouter)          // /api/admin/...
 app.use("/api", notificationRouter)   // /api/notifications/...
