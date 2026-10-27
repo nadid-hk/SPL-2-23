@@ -152,6 +152,15 @@ export default function Detail({ go, user, house }) {
     "/images/pexels-quang-nguyen-vinh-222549-14021929.jpg"
   ];
 
+  // Third gallery image: the house's exterior picture uploaded at
+  // registration (HomeRegister.housePicture.url). It comes through
+  // `house.registeredHouse` because post.service.js now includes
+  // `housePicture` in the populate select. Falls back to the stock image
+  // for older registrations that have no picture saved.
+  const housePictureUrl =
+    house?.registeredHouse?.housePicture?.url ||
+    "/images/pexels-quang-nguyen-vinh-222549-14021929.jpg";
+
   const submitReview = async () => {
     if (!reviewText.trim()) { alert("Please write your review first."); return; }
     if (!selectedRating)    { alert("Please select a star rating."); return; }
@@ -341,17 +350,23 @@ export default function Detail({ go, user, house }) {
           </div>
         )}
 
-        {/* GALLERY */}
+        {/* GALLERY — one large main image on the left, two equal-height
+            images stacked on the right, so all three are shown clearly.
+            minHeight: 0 stops the images from stretching their grid rows. */}
         <div className="detail-gallery" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', height: '600px', marginBottom: '2rem' }}>
-          <div className="gallery-main" style={{ width: '100%', height: '100%' }}>
+          <div className="gallery-main" style={{ width: '100%', height: '100%', minHeight: 0, overflow: 'hidden', borderRadius: '8px' }}>
             <img src={targetImages[0] || "/images/placeholder.jpg"}
               alt="Main Interior"
-              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             />
           </div>
-          <div className="gallery-sub" style={{ display: 'grid', gridTemplateRows: '2fr 1fr', gap: '10px',height: '100%' }}>
-            <img src={targetImages[1] || "/images/placeholder.jpg"} alt="Interior View 2" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
-            {/* <img src={targetImages[2] || "/images/placeholder.jpg"} alt="Interior View 3" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /> */}
+          <div className="gallery-sub" style={{ display: 'grid', gridTemplateRows: '1fr 1fr', gap: '10px', height: '100%', minHeight: 0 }}>
+            <div style={{ minHeight: 0, overflow: 'hidden', borderRadius: '8px' }}>
+              <img src={targetImages[1] || "/images/placeholder.jpg"} alt="Interior View 2" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </div>
+            <div style={{ minHeight: 0, overflow: 'hidden', borderRadius: '8px' }}>
+              <img src={housePictureUrl} alt="House exterior" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </div>
           </div>
         </div>
 

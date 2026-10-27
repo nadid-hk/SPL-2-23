@@ -38,6 +38,10 @@ export const resolveOwnerGroupId = async (previousKhatianNumber) => {
 // other internal id. Per product decision, this is intentionally NOT
 // password-gated: knowing a Khatian number is treated as enough to prefill
 // a form the owner can still review and edit before submitting.
+//
+// NOTE: `email` is deliberately NOT returned here. This endpoint is public,
+// so exposing it would let anyone who knows a Khatian number read the
+// owner's email address.
 export const findOwnerInfoByKhatianNumber = async (khatianNumber) => {
     const property = await HomeRegister
         .findOne({ khatianNumber })
@@ -60,6 +64,9 @@ export const createHomeRegistration = async (data, ownerId, ownerGroupId = null)
             owner: ownerId,
             ownerFullName: data.ownerFullName,
             phoneNumber: data.phoneNumber,
+            // FIX: email was validated by the middleware but never copied
+            // into this payload, so it was silently dropped before saving.
+            email: data.email,
             khatianNumber: data.khatianNumber,
             password: data.password,
             housePropertyName: data.housePropertyName,

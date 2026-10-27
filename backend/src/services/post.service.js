@@ -121,7 +121,7 @@ export const createPost = async (data, user) => {
 // exactLocation coordinates with no "X min walk" context.
 export const getApprovedPosts = async () => {
     const posts = await Post.find({ status: "approved" })
-        .populate("registeredHouse", "housePropertyName houseAddress owner ownerFullName phoneNumber")
+        .populate("registeredHouse", "housePropertyName houseAddress owner ownerFullName phoneNumber housePicture")
         .sort({ createdAt: -1 })
         .lean();
 
@@ -186,7 +186,7 @@ export const getApprovedPostsByPriceRange = async ({ minRent, maxRent }) => {
     if (Object.keys(rentFilter).length > 0) query.monthlyRent = rentFilter;
 
     const posts = await Post.find(query)
-        .populate("registeredHouse", "housePropertyName houseAddress owner ownerFullName phoneNumber")
+        .populate("registeredHouse", "housePropertyName houseAddress owner ownerFullName phoneNumber housePicture")
         .sort({ monthlyRent: 1 }) // cheapest first
         .lean();
 

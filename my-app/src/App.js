@@ -43,6 +43,8 @@ export default function App() {
     if (saved?.page && !AUTH_PAGES.includes(saved.page)) {
       // only admins may restore the admin page
       if (saved.page === "adminDashboard" && session.role !== "admin") return "dashboard";
+      // admins may not open the post page
+      if (saved.page === "post" && session.role === "admin") return "adminDashboard";
       return saved.page;
     }
     return session.role === "admin" ? "adminDashboard" : "dashboard";
@@ -51,6 +53,8 @@ export default function App() {
   const [pageData, setPageData] = useState(() => readSavedPage()?.data ?? null);
 
   const go = (dest, data = null) => {
+    // admins are not allowed to create posts
+    if (dest === "post" && user?.role === "admin") return;
     setPage(dest);
     setPageData(data);
     try {
@@ -106,7 +110,7 @@ export default function App() {
       {page === "adminDashboard" && <AdminDashboard {...shared} />}
       {page === "detail"        && <Detail        {...shared} house={pageData} />}
       {page === "profile"       && <Profile       {...shared} onUpdateUser={handleUpdateUser} />}
-      {page === "post"          && <Post          {...shared} />}
+      {page === "post" && user?.role !== "admin" && <Post {...shared} />}
       {/* ─── CHAT FEATURE (Talha) ───
           go("chat") opens the newest thread; go("chat", conversationId)
           (used by the Message Owner button) opens that specific one. */}

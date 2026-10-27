@@ -7,6 +7,7 @@ import {
   IoHomeOutline,
   IoPersonOutline,
   IoCallOutline,
+  IoMailOutline,
   IoKeyOutline,
   IoLockClosedOutline,
   IoLocationOutline,
@@ -146,6 +147,7 @@ export default function HomeRegister({ go, user }) {
   const [form, setForm] = useState({
     ownerFullName: "",
     phoneNumber: "",
+    email: "",         // where the admin's rejection reason is sent
     khatianNumber: "", // Khatian number for THIS property (own login)
     password: "",      // password for THIS property (own login)
     housePropertyName: "",
@@ -230,6 +232,10 @@ export default function HomeRegister({ go, user }) {
       setErrorMessage("Please enter a valid 11-digit phone number.");
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setErrorMessage("Please enter a valid email address.");
+      return;
+    }
     next();
   };
 
@@ -253,6 +259,7 @@ export default function HomeRegister({ go, user }) {
 
       formData.append("ownerFullName", form.ownerFullName);
       formData.append("phoneNumber", form.phoneNumber);
+      formData.append("email", form.email.trim());
       formData.append("khatianNumber", form.khatianNumber);
       formData.append("password", form.password);
       formData.append("housePropertyName", form.housePropertyName);
@@ -294,6 +301,7 @@ export default function HomeRegister({ go, user }) {
     const rows = [
       [IoPersonOutline, form.ownerFullName],
       [IoCallOutline, form.phoneNumber],
+      [IoMailOutline, form.email],
       [IoKeyOutline, `Khatian No: ${form.khatianNumber}`],
       [IoHomeOutline, form.housePropertyName],
       [IoLocationOutline, form.houseAddress],
@@ -573,6 +581,16 @@ export default function HomeRegister({ go, user }) {
                 />
               </Field>
 
+              <Field label="Email (admin messages will be sent here)" icon={IoMailOutline}>
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={form.email}
+                  onChange={set("email")}
+                  style={inputWithIcon}
+                />
+              </Field>
+
               {/* <div className="auth-divider" style={{ marginTop: "1.4rem" }}>
                 <span>Login for this property</span>
               </div> */}
@@ -707,6 +725,7 @@ export default function HomeRegister({ go, user }) {
                 {[
                   [IoPersonOutline, "Owner", form.ownerFullName || "—"],
                   [IoCallOutline, "Phone", form.phoneNumber || "—"],
+                  [IoMailOutline, "Email", form.email || "—"],
                   [IoKeyOutline, "Khatian No.", form.khatianNumber || "—"],
                   [IoLockClosedOutline, "Password", form.password ? "•".repeat(form.password.length) : "—"],
                   [IoHomeOutline, "Property", form.housePropertyName || "—"],

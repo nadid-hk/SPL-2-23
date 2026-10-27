@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import Navbar from "../components/Navbar";
 import SearchMap from "../components/SearchMap";
 import { API_BASE } from "../config";
-import { FiAlertTriangle, FiUser, FiZap, FiMapPin, FiPlus, FiChevronDown, FiCheck, FiX } from "react-icons/fi";
+import { FiAlertTriangle, FiUser, FiZap, FiMapPin, FiPlus, FiChevronDown, FiCheck, FiX, FiPhone } from "react-icons/fi";
 import { FaBangladeshiTakaSign, FaPersonWalking } from "react-icons/fa6";
 import { BsCircleFill } from "react-icons/bs";
 
@@ -32,7 +32,14 @@ const PRICE_PRESETS = [
   { label: "Above ৳15,000",     min: "15000", max: "" },
 ];
 
-const EMPTY_FILTER = { min: "", max: "", utilities: [], features: [] };
+// Post type: "student" posts are roommate posts, "owner" posts are house-rent posts
+const POST_TYPE_OPTIONS = [
+  { value: "",        label: "All posts" },
+  { value: "student", label: "Roommate Post" },
+  { value: "owner",   label: "House Rent Post" },
+];
+
+const EMPTY_FILTER = { postType: "", min: "", max: "", utilities: [], features: [] };
 
 /* ── FILTER BAR ──
    Three dropdown lists (Price / Utilities / Amenities). Clicking an item
@@ -85,12 +92,16 @@ function FilterBar({ filter, setFilter }) {
     ? `৳${filter.min || "0"} – ${filter.max ? "৳" + filter.max : "any"}`
     : "Price";
 
-  const isFiltered = priceActive || filter.utilities.length > 0 || filter.features.length > 0;
+  const postTypeActive = filter.postType !== "";
+  const postTypeLabel = POST_TYPE_OPTIONS.find((o) => o.value === filter.postType)?.label || "Post Type";
+
+  const isFiltered = postTypeActive || priceActive || filter.utilities.length > 0 || filter.features.length > 0;
 
   const toggleMenu = (name) => setOpenMenu((m) => (m === name ? null : name));
 
   // Chips for everything currently applied
   const chips = [
+    ...(postTypeActive ? [{ id: "type", label: postTypeLabel, remove: () => setFilter((f) => ({ ...f, postType: "" })) }] : []),
     ...(priceActive ? [{ id: "price", label: priceLabel, remove: () => setFilter((f) => ({ ...f, min: "", max: "" })) }] : []),
     ...filter.utilities.map((v) => ({
       id: "u-" + v,
@@ -103,6 +114,29 @@ function FilterBar({ filter, setFilter }) {
   return (
     <div ref={barRef} className="filter-bar">
       <div className="filter-row-wrap">
+
+        {/* POST TYPE (Roommate / House Rent) */}
+        <div className="filter-menu">
+          <button type="button" className={`filter-btn${postTypeActive || openMenu === "type" ? " active" : ""}`} onClick={() => toggleMenu("type")}>
+            <FiUser /> {postTypeActive ? postTypeLabel : "Post Type"} <FiChevronDown />
+          </button>
+          {openMenu === "type" && (
+            <div className="filter-panel">
+              {POST_TYPE_OPTIONS.map((o) => {
+                const selected = filter.postType === o.value;
+                return (
+                  <button
+                    type="button" key={o.label} className={`filter-option${selected ? " selected" : ""}`}
+                    onClick={() => { setFilter((f) => ({ ...f, postType: o.value })); setOpenMenu(null); }}
+                  >
+                    <span className={`filter-tick${selected ? " selected" : ""}`}>{selected && <FiCheck size={12} />}</span>
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* PRICE */}
         <div className="filter-menu">
@@ -229,12 +263,24 @@ export default function Dashboard({ go, user }) {
   // Re-run when the logged-in user changes (e.g. right after signup/login)
   const userId = user?._id || user?.id;
 
+  // Admins can review listings but are not allowed to create posts
+  const isAdmin = String(user?.role || "").toLowerCase() === "admin" || user?.isAdmin === true;
+
   // ── Map pins built straight from Post data (not HomeRegister).
   // Every approved Post carries its own exactLocation plus the pre-computed
   // `distance` block. Posts with no usable coordinates are skipped so a
   // bad/missing pin can't crash the map.
+  // Post-type filter (Roommate = student posts, House Rent = owner posts),
+  // applied on the client on top of whatever the server returned.
+  const visiblePosts = useMemo(() => {
+    if (!filter.postType) return posts;
+    return posts.filter((p) =>
+      filter.postType === "student" ? p.postedAs === "student" : p.postedAs !== "student"
+    );
+  }, [posts, filter.postType]);
+
   const pins = useMemo(() => {
-    return posts
+    return visiblePosts
       .filter((p) => Array.isArray(p.exactLocation?.coordinates) && p.exactLocation.coordinates.length === 2)
       .map((p) => {
         const [lng, lat] = p.exactLocation.coordinates;
@@ -250,13 +296,13 @@ export default function Dashboard({ go, user }) {
           distanceFromGateMeters: p.distance?.meters ?? null,
         };
       });
-  }, [posts]);
+  }, [visiblePosts]);
 
   // SearchMap calls `go("detail", pin.id)` on pin click — Dashboard's own
   // convention passes the full post object instead, so Detail.js gets
   // everything it needs without a re-fetch. This wrapper bridges the two.
   const goToDetailById = (page, id) => {
-    const fullPost = posts.find((p) => p._id === id);
+    const fullPost = visiblePosts.find((p) => p._id === id);
     go(page, fullPost || id);
   };
 
@@ -309,6 +355,7 @@ export default function Dashboard({ go, user }) {
   }, [userId, filter]);
 
   const isFiltered =
+    filter.postType !== "" ||
     filter.min !== "" || filter.max !== "" ||
     filter.utilities.length > 0 || filter.features.length > 0;
 
@@ -341,9 +388,11 @@ export default function Dashboard({ go, user }) {
             <div className="section-title">Listing Of Houses</div>
             <div className="section-bar" />
           </div>
-          <button className="btn-primary" style={{ padding: ".6rem 1.2rem", fontSize: ".85rem", display: "inline-flex", alignItems: "center", gap: ".4rem" }} onClick={() => go("post")}>
-            <FiPlus /> Post a House
-          </button>
+          {!isAdmin && (
+            <button className="btn-primary" style={{ padding: ".6rem 1.2rem", fontSize: ".85rem", display: "inline-flex", alignItems: "center", gap: ".4rem" }} onClick={() => go("post")}>
+              <FiPlus /> Post a House
+            </button>
+          )}
         </div>
 
         {/* FILTERS: Price / Utilities / Amenities dropdown lists, apply on click */}
@@ -351,13 +400,13 @@ export default function Dashboard({ go, user }) {
 
         {loading ? (
           <EmptyState msg="Loading posts..." />
-        ) : posts.length === 0 ? (
+        ) : visiblePosts.length === 0 ? (
           <EmptyState msg={isFiltered ? "No listings match your filters." : "No posts yet. Be the first to post your property!"} />
         ) : (
           <div className="search-split">
             <div className="search-results-col">
               <div className="listings-grid split">
-                {posts.map(post => (
+                {visiblePosts.map(post => (
                   <PostCard
                     key={post._id}
                     post={post}
@@ -453,6 +502,21 @@ function HouseCard({ post, onClick }) {
   );
 }
 
+/* Finds the poster's phone number on a post. Checks common flat field names
+   and also nested/populated user objects (postedBy, user, author, ...). */
+const PHONE_KEYS = ["contactPhone", "phone", "phoneNumber", "phone_number", "mobile", "mobileNumber", "contactNumber", "contact", "studentPhone", "posterPhone"];
+const USER_KEYS = ["postedBy", "poster", "user", "author", "student", "createdBy", "owner"];
+function getPosterPhone(post) {
+  for (const k of PHONE_KEYS) if (post?.[k]) return String(post[k]);
+  for (const u of USER_KEYS) {
+    const obj = post?.[u];
+    if (obj && typeof obj === "object") {
+      for (const k of PHONE_KEYS) if (obj[k]) return String(obj[k]);
+    }
+  }
+  return null;
+}
+
 /* ── POST CARD ──
    `active` + `onHover`/`onHoverEnd` sync this card's highlight state with
    its pin on the SearchMap (hover a card -> its price pin lifts on the map,
@@ -462,6 +526,9 @@ function PostCard({ post, go, active, onHover, onHoverEnd }) {
   const image = post.photos?.[0]?.url;
   const has24_7 = post.utilities?.includes("24/7 Electricity");
   const isRented = post.isRented || false;
+  const isStudentPost = post.postedAs === "student";
+  // Student's phone number (only shown on student posts, never for homeowners)
+  const studentPhone = getPosterPhone(post);
   const distanceLabel =
     post.distance?.meters != null
       ? post.distance.meters < 1000
@@ -494,10 +561,13 @@ function PostCard({ post, go, active, onHover, onHoverEnd }) {
           <div className="prop-meta-row"><FaBangladeshiTakaSign /> ৳{post.monthlyRent?.toLocaleString()} / month</div>
           <div className="prop-meta-row">
             <FiUser />{" "}
-            {post.postedAs === "student"
-              ? `Posted by: ${post.posterName || "Student"}${post.studentDepartment ? ` (${post.studentDepartment})` : ""}`
-              : `Posted by: ${post.posterName || post.ownerName || "Homeowner"} (Homeowner)`}
+            {isStudentPost
+              ? `Posted by Student: ${post.posterName || "Student"}${post.studentDepartment ? ` (${post.studentDepartment})` : ""}`
+              : `Posted by HomeOwner: ${post.posterName || post.ownerName || ""}`.trim()}
           </div>
+          {isStudentPost && studentPhone && (
+            <div className="prop-meta-row"><FiPhone /> {studentPhone}</div>
+          )}
           <div className="prop-meta-row"><FiZap /> {has24_7 ? "24/7 Electricity" : "No 24/7 backup"}</div>
           {distanceLabel && (
             <div className="prop-meta-row"><FaPersonWalking /> {distanceLabel}</div>

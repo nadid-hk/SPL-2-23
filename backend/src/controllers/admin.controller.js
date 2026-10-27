@@ -28,6 +28,21 @@ export const getAllUsersHandler = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, data, "Users fetched"));
 });
 
+// GET /api/admin/registrations/:id/files/:kind   kind: housePicture | khatianCertificate
+// Streams the PRIVATE pending file so the admin can inspect it before deciding.
+export const viewRegistrationFile = asyncHandler(async (req, res) => {
+    const abs = await adminService.getRegistrationFilePath(req.params.id, req.params.kind);
+    res.set({ "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" });
+    res.sendFile(abs);
+});
+
+// GET /api/admin/posts/:id/photos/:index
+export const viewPostPhoto = asyncHandler(async (req, res) => {
+    const abs = await adminService.getPostPhotoPath(req.params.id, req.params.index);
+    res.set({ "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" });
+    res.sendFile(abs);
+});
+
 // Rank-based (RankUser) accounts whose 6-month profile-edit deadline has passed
 export const getExpiredRankUsersHandler = asyncHandler(async (req, res) => {
     const data = await adminService.getExpiredRankUsers();

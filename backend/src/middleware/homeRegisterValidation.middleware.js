@@ -3,6 +3,7 @@ export const validateHomeRegister = (req, res, next) => {
     const {
         ownerFullName,
         phoneNumber,
+        email,
         housePropertyName,
         houseAddress,
         latitude,
@@ -21,6 +22,12 @@ export const validateHomeRegister = (req, res, next) => {
     // Check required text fields
     if (!ownerFullName?.trim()) errors.push("Owner full name is required");
     if (!phoneNumber?.trim()) errors.push("Phone number is required");
+
+    // NEW: email is where the admin's rejection reason gets sent.
+    const cleanEmail = email ? email.trim().toLowerCase() : "";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail) errors.push("Email is required");
+    else if (!emailRegex.test(cleanEmail)) errors.push("Invalid email address.");
     if (!housePropertyName?.trim()) errors.push("House/Property name is required");
     if (!houseAddress?.trim()) errors.push("House address is required");
     if (!latitude || !longitude) errors.push("Coordinates (latitude and longitude) are required");
@@ -40,7 +47,7 @@ export const validateHomeRegister = (req, res, next) => {
     const cleanPhone = phoneNumber ? phoneNumber.replace(/\s+/g, '').replace('+88', '') : '';
     const bdPhoneRegex = /^01[3-9]\d{8}$/; 
     if (phoneNumber && !bdPhoneRegex.test(cleanPhone)) {
-        errors.push("Invalid Bangladesh phone number. Must be 11 digits.");
+        errors.push("Invalid Bangladesh phone number. 11 digits are missing or Inappropiate phone number.");
     }
 
     // Validate coordinate limits
@@ -67,6 +74,7 @@ export const validateHomeRegister = (req, res, next) => {
     req.validatedData = {
         ownerFullName,
         phoneNumber: cleanPhone,
+        email: cleanEmail,
         housePropertyName,
         houseAddress,
         coordinates: [lng, lat], 

@@ -65,6 +65,21 @@ const homeRegisterSchema = new mongoose.Schema(
             required: [true, "Phone number is required"],
             trim: true
         },
+        // NEW: contact email, used only so the admin can send the owner the
+        // rejection reason. Deliberately NOT `required` / `unique` at schema
+        // level: (1) HomeRegister documents created before this change have
+        // no email, and a `required` rule would make registration.save()
+        // fail when the admin reviews them; (2) one owner can have several
+        // properties, so the same email may legitimately repeat.
+        // Presence for NEW registrations is enforced in
+        // homeRegisterValidation.middleware.js instead.
+        email: {
+            type: String,
+            trim: true,
+            lowercase: true,
+            match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Please provide a valid email address"],
+            default: ""
+        },
         khatianNumber: {
             type: String,
             required: [true, "Khatian number is required"],
@@ -73,7 +88,8 @@ const homeRegisterSchema = new mongoose.Schema(
         },
         password: {
             type: String,
-            required: [true, "Password is required"]
+            required: [true, "Password is required"],
+            select: false            
         },
         housePropertyName: {
             type: String,

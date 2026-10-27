@@ -25,11 +25,9 @@ const uploadOnCloudinary = async (localFilePath) => {
         }
         return response;
     } catch (error) {
-        console.error("REAL CLOUDINARY ERROR:", error); 
-
-        if (fs.existsSync(localFilePath)) {
-            fs.unlinkSync(localFilePath);
-        }
+        console.error("REAL CLOUDINARY ERROR:", error);
+        // Keep the local file on failure: the registration/post stays
+        // pending, so the admin must still be able to view it and retry.
         return null;
     }
 };

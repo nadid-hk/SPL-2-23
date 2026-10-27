@@ -4,7 +4,7 @@ import { API_BASE } from "../config";
 import {
   FiFileText, FiUserCheck, FiHome, FiCheck, FiX, FiTrash2,
   FiChevronDown, FiSearch, FiAlertCircle, FiInbox, FiUser,
-  FiPhone, FiCalendar, FiCreditCard, FiUsers,
+  FiPhone, FiCalendar, FiCreditCard, FiUsers, FiExternalLink,
 } from "react-icons/fi";
 import "./AdminDashboard.css"; // keep AFTER App.css / Darkmode.css
 
@@ -150,7 +150,7 @@ export default function AdminDashboard({ go, user }) {
       const reg = pendingRegs.find(r => r._id === id);
       alert(decision === "approved"
         ? `Registration confirmed!\n${reg?.ownerFullName || "The owner"} can now log in as a Home Owner.`
-        : `Registration rejected.${reason ? `\nReason: ${reason}` : ""}`
+        : `Registration rejected.${reason ? `\nReason: ${reason}` : ""}${reg?.email ? `\nThe reason was emailed to ${reg.email}.` : ""}`
       );
 
       setPendingRegs(prev => prev.filter(r => r._id !== id));
@@ -162,8 +162,13 @@ export default function AdminDashboard({ go, user }) {
 
   const approveReg = id => reviewRegistration(id, "approved");
   const rejectReg = id => {
-    const reason = prompt("Reason for rejection (optional):");
-    reviewRegistration(id, "rejected", reason);
+    const reason = prompt("Reason for rejection (this will be emailed to the owner):");
+    if (reason === null) return; // cancel click protection
+    if (!reason.trim()) {
+      alert("A reason is required so it can be emailed to the owner.");
+      return;
+    }
+    reviewRegistration(id, "rejected", reason.trim());
   };
 
   // Deletes a User account. `isExpiredRank` accounts don't require typing a
@@ -374,13 +379,15 @@ export default function AdminDashboard({ go, user }) {
                   <InfoRow label="Address"     value={post.fullAddress} />
                   <InfoRow label="Gate closes" value={post.gateClosedTime} />
                   <InfoRow label="Submitted"   value={new Date(post.createdAt).toLocaleString()} />
-                  {post.photos?.length > 0 && (
-                    <div className="adm-photos">
-                      {post.photos.map((p, i) => (
-                        <img key={i} src={p.url} alt={`Listing photo ${i + 1}`} />
-                      ))}
-                    </div>
-                  )}
+                  <div className="adm-photos">
+                    {(post.photoLocalPaths || []).map((_, i) => (
+                      <PrivateFile
+                        key={i}
+                        href={`${API_BASE}/admin/posts/${post._id}/photos/${i}`}
+                        label={`Photo ${i + 1}`}
+                      />
+                    ))}
+                  </div>
                   <div className="adm-actions">
                     <Btn variant="approve" onClick={() => approvePost(post._id)}><FiCheck /> Approve post</Btn>
                     <Btn variant="reject"  onClick={() => rejectPost(post._id)}><FiX /> Reject</Btn>
@@ -414,16 +421,23 @@ export default function AdminDashboard({ go, user }) {
                 >
                   <InfoRow label="Owner name" value={reg.ownerFullName} />
                   <InfoRow label="Phone"      value={reg.phoneNumber} />
+                  <InfoRow label="Email"      value={reg.email || "— (not provided)"} />
                   <InfoRow label="Property"   value={reg.housePropertyName} />
                   <InfoRow label="Address"    value={reg.houseAddress} />
                   <InfoRow label="Map pin"    value={reg.houseMap?.coordinates?.slice().reverse().join(", ")} />
                   <InfoRow label="Submitted"  value={new Date(reg.createdAt).toLocaleString()} />
                   <div className="adm-photos">
-                    {reg.housePicture?.url && (
-                      <img src={reg.housePicture.url} alt="House" />
+                    {reg.housePictureLocalPath && (
+                      <PrivateFile
+                        href={`${API_BASE}/admin/registrations/${reg._id}/files/housePicture`}
+                        label="House picture"
+                      />
                     )}
-                    {reg.khatianCertificate?.url && (
-                      <img src={reg.khatianCertificate.url} alt="Khatian certificate" />
+                    {reg.khatianCertificateLocalPath && (
+                      <PrivateFile
+                        href={`${API_BASE}/admin/registrations/${reg._id}/files/khatianCertificate`}
+                        label="Khatian certificate"
+                      />
                     )}
                   </div>
                   <div className="adm-actions">
@@ -608,6 +622,23 @@ function Accordion({ open, onToggle, title, meta, children }) {
       </button>
       {open && <div className="adm-acc-body">{children}</div>}
     </div>
+  );
+}
+
+// Link to a PRIVATE pending file (served by an admin-only endpoint).
+// Shows a thumbnail when the file is an image; PDFs just show the link.
+function PrivateFile({ href, label }) {
+  const [thumbOk, setThumbOk] = useState(true);
+  return (
+    <a href={href} target="_blank" rel="noreferrer"
+       style={{ display: "inline-flex", flexDirection: "column", gap: ".3rem", textDecoration: "none" }}>
+      {thumbOk && (
+        <img src={href} alt={label} onError={() => setThumbOk(false)} />
+      )}
+      <span style={{ display: "inline-flex", alignItems: "center", gap: ".3rem", fontSize: ".85rem" }}>
+        {label} <FiExternalLink />
+      </span>
+    </a>
   );
 }
 

@@ -8,7 +8,9 @@ import {
     reviewPostHandler,
     getAllUsersHandler,
     getExpiredRankUsersHandler,
-    deleteUserHandler
+    deleteUserHandler,
+    viewRegistrationFile,
+    viewPostPhoto
 } from "../controllers/admin.controller.js";
 
 const router = Router();
@@ -29,4 +31,7 @@ router.route("/admin/users").get(getAllUsersHandler);
 router.route("/admin/users/expired-rank").get(getExpiredRankUsersHandler);
 router.route("/admin/users/:id").delete(deleteUserHandler);
 
+
+router.get("/admin/registrations/:id/files/:kind", viewRegistrationFile);
+router.get("/admin/posts/:id/photos/:index", viewPostPhoto);
 export default router;

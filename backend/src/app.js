@@ -40,6 +40,7 @@ app.use("/api", notificationRouter)   // /api/notifications/...
 app.use("/api/otp", otpRouter)           // /api/otp/...
 app.use("/api/ownerinfo",homeOwnerInfoRouter)
 app.use("/api/filterPost", filterPost);
+
 // ─── CHAT FEATURE (Talha) ───
 // /api/chat/conversations, /api/chat/conversations/:conversationId/messages
 // Real-time delivery is handled separately by Socket.IO — see

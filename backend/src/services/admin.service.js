@@ -5,6 +5,11 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/apiError.util.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { removeLocalFile } from "../utils/removeLocalFile.util.js";
+import path from "path";
+import fs from "fs";
+import nodemailer from "nodemailer";
+// Adjust this path if your middleware folder is named differently.
+import { PENDING_UPLOAD_DIR } from "../middleware/multer.middleware.js";
 // Rank-based accounts (RankUser discriminator) are only allowed to keep
 // editing their profile for ~6 months after registration — see
 // rankUser.model.js `profileEditDeadline`. Past that date the account is
@@ -13,6 +18,56 @@ const isRankAccountExpired = (user) =>
     user.authMethod === "RankUser" &&
     user.profileEditDeadline &&
     user.profileEditDeadline.getTime() < Date.now();
+
+// ── Email (rejection messages) ──
+// Requires SMTP_USER / SMTP_PASS in .env (for Gmail, SMTP_PASS must be an
+// App Password, not the normal account password).
+let transporter;
+const getTransporter = () => {
+    if (!transporter) {
+        transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS
+            },
+        });
+    }
+    return transporter;
+};
+
+const sendRejectionEmail = async (registration, reason) => {
+    // Registrations created before the email field existed have no address.
+    // Don't block the admin from rejecting them — the in-app Notification
+    // below is still created.
+    if (!registration.email) {
+        console.warn(
+            `Registration ${registration._id} has no email on file; rejection email skipped.`
+        );
+        return;
+    }
+
+    const text =
+        `Hello ${registration.ownerFullName},\n\n` +
+        `Your property registration "${registration.housePropertyName}" ` +
+        `(Khatian No: ${registration.khatianNumber}) on KHOJ was rejected by the admin.\n\n` +
+        `Reason: ${reason || "Not specified"}\n\n` +
+        `You can correct the issue and submit a new registration.\n\n` +
+        `- KHOJ Team`;
+
+    try {
+        await getTransporter().sendMail({
+            from: process.env.SMTP_USER,
+            to: registration.email,
+            subject: "KHOJ - admin message",
+            text,
+        });
+    } catch (error) {
+        console.error("Failed to sent the message:", error);
+
+        throw new ApiError(500, "Could not send the Rejection message. Please try again.");
+    }
+};
 
 // ── Reads ──
 export const getPendingHomeRegistrations = () =>
@@ -43,12 +98,56 @@ export const getExpiredRankUsers = () =>
         profileEditDeadline: { $lt: new Date() }
     }).sort({ profileEditDeadline: 1 });
 
+// ── Private file viewing (admin reviews photos BEFORE approving) ──
+// Only ever serve files that live inside the pending-uploads folder, so a
+// bad/tampered DB value can never make this endpoint read arbitrary files.
+const resolvePendingFile = (storedPath) => {
+    if (!storedPath) throw new ApiError(404, "File not found");
+    const abs = path.resolve(storedPath);
+    if (!abs.startsWith(PENDING_UPLOAD_DIR + path.sep)) {
+        throw new ApiError(403, "Invalid file location");
+    }
+    if (!fs.existsSync(abs)) throw new ApiError(404, "File no longer exists on disk");
+    return abs;
+};
+
+export const getRegistrationFilePath = async (id, kind) => {
+    const reg = await HomeRegister.findById(id)
+        .select("status housePictureLocalPath khatianCertificateLocalPath");
+    if (!reg) throw new ApiError(404, "Registration not found");
+    if (reg.status !== "pending") {
+        throw new ApiError(410, "Already reviewed. The file is now on Cloudinary.");
+    }
+    const files = {
+        housePicture: reg.housePictureLocalPath,
+        khatianCertificate: reg.khatianCertificateLocalPath
+    };
+    if (!Object.hasOwn(files, kind)) throw new ApiError(400, "Unknown file type");
+    return resolvePendingFile(files[kind]);
+};
+
+export const getPostPhotoPath = async (id, index) => {
+    const post = await Post.findById(id).select("status photoLocalPaths");
+    if (!post) throw new ApiError(404, "Post not found");
+    if (post.status !== "pending") {
+        throw new ApiError(410, "Already reviewed. The photos are now on Cloudinary.");
+    }
+    return resolvePendingFile(post.photoLocalPaths?.[Number(index)]);
+};
+
 // ── Decisions ──
 export const reviewHomeRegistration = async (id, decision, reason, adminId) => {
     const registration = await HomeRegister.findById(id);
     if (!registration) throw new ApiError(404, "Registration not found");
     if (registration.status !== "pending") {
         throw new ApiError(400, "This registration has already been reviewed");
+    }
+
+    // Email FIRST (same idea as the Cloudinary upload below): if sending
+    // fails we throw before changing anything, so the registration stays
+    // pending and the admin can simply retry the rejection.
+    if (decision === "rejected") {
+        await sendRejectionEmail(registration, reason);
     }
 
     if (decision === "approved") {
