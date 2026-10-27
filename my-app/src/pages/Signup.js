@@ -29,6 +29,25 @@ function GoogleBtn({ onSuccess, onError }) {
   );
 }
 
+// Reads the payload of the Google ID token (a JWT) so we can see the email.
+// This is only for a quick check in the browser; the backend must verify the
+// token's signature and re-check the email domain too.
+function decodeGoogleCredential(credential) {
+  try {
+    const base64 = credential.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+        .join("")
+    );
+    return JSON.parse(json);
+  } catch (err) {
+    console.error("Could not read Google credential:", err);
+    return null;
+  }
+}
+
 // One place that talks to the backend. Returns { ok, message, user }.
 async function registerUser(payload) {
   try {
@@ -530,8 +549,20 @@ export default function Signup({ go, onLogin }) {
 };
 
   const handleGoogleSuccess = (credentialResponse) => {
-    console.log("Google login success:", credentialResponse);
-    // TODO: send credentialResponse.credential to backend, then onLogin(user)
+    setGoogleError("");
+    const profile = decodeGoogleCredential(credentialResponse.credential);
+    const email = (profile?.email || "").trim().toLowerCase();
+    console.log("Google sign-in email:", email, "verified:", profile?.email_verified);
+
+    if (!email || !profile?.email_verified) {
+      return setGoogleError("Could not verify your Google email. Please try again.");
+    }
+    if (!IUT_EMAIL.test(email)) {
+      return setGoogleError("Only @iut-dhaka.edu Google accounts are allowed.");
+    }
+
+    // TODO: send credentialResponse.credential to backend (which must also
+    // verify the token and the @iut-dhaka.edu domain), then onLogin(user)
   };
 
   return (
