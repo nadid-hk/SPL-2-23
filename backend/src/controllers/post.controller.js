@@ -1,0 +1,109 @@
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiResponse } from "../utils/apiResponse.js";
+import { ApiError } from "../utils/apiError.util.js";
+import { createPost, getApprovedPosts, getApprovedPostsByPriceRange } from "../services/post.service.js";
+import { setPostRentalStatus, verifyOwnerByKhatian } from "../services/post.service.js";
+import { IUT_GATE } from "../constants.js";
+// E:\SPL-II_working_directory\backend\src\constants.js
+// E:\SPL-II_working_directory\backend\src\controllers\user.controller.js
+
+
+// 🐛 Same bug class as homeRegister.controller.js: this trusted a raw
+// `authorId` from the request body. Unlike home registration, whoever is
+// creating a Post IS already logged in (a student posting a listing), so
+// there's no excuse to take this from the client at all — it should come
+// from the authenticated session (`req.user`), which requires `verifyJWT`
+// to run on this route (see post.route.js).
+export const createPostHandler = asyncHandler(async (req, res) => {
+    // postedAs / khatianNumber / studentDepartment are read from req.body
+    // as well, so they survive even if the validation schema doesn't list
+    // them yet. The service re-validates all of them.
+    const { postedAs, khatianNumber, studentDepartment } = req.body;
+    const data = {
+        ...req.validatedData,
+        postedAs,
+        khatianNumber,
+        studentDepartment,
+        contactPhone: req.validatedData?.contactPhone ?? req.body.contactPhone,
+    };
+
+    const post = await createPost(data, req.user);
+
+    return res
+        .status(201)
+        .json(new ApiResponse(201, post, "Post submitted successfully. It is now pending admin approval."));
+});
+
+// POST /api/posts/verify-owner — owner re-enters the Khatian number; we look
+// it up in HomeRegister and return the details used to prefill the form.
+export const verifyOwnerHandler = asyncHandler(async (req, res) => {
+    const { khatianNumber } = req.body;
+    const house = await verifyOwnerByKhatian(null, khatianNumber);
+
+    // Everything the post form needs, straight from HomeRegister.
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                registeredHouse: house._id,
+                housePropertyName: house.housePropertyName,
+                houseAddress: house.houseAddress,
+                ownerFullName: house.ownerFullName,
+                phoneNumber: house.phoneNumber,
+            },
+            "Owner verified"
+        )
+    );
+});
+
+// GET /api/posts/approved — public/student-facing listings dashboard
+// ── NEW: response shape changed from a bare array to { posts, iutGate } so
+// the dashboard map card can drop its gate pin without hardcoding
+// coordinates on the frontend. If anything else on the frontend still reads
+// `result.data` as an array directly, update it to `result.data.posts`.
+export const getListings = asyncHandler(async (req, res) => {
+    const posts = await getApprovedPosts();
+    return res
+        .status(200)
+        .json(new ApiResponse(200, { posts, iutGate: IUT_GATE }, "Approved listings fetched"));
+});
+
+// PATCH /api/posts/:id/rental-status
+export const updatePostRentalStatus = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { isRented, tenantId } = req.body;
+
+    if (typeof isRented !== "boolean") {
+        throw new ApiError(400, "isRented must be a boolean (true or false).");
+    }
+
+    const updated = await setPostRentalStatus(id, req.user, isRented, tenantId);
+ 
+    return res
+        .status(200)
+        .json(new ApiResponse(200, updated, `Property marked as ${isRented ? "Rented" : "Available"}.`));
+});
+
+export const filterListingsByPrice = asyncHandler(async (req, res) => {
+    const parseRent = (value, name) => {
+        if (value === undefined || value === "") return undefined;
+        const num = Number(value);
+        if (!Number.isFinite(num) || num < 0) {
+            throw new ApiError(400, `${name} must be a non-negative number.`);
+        }
+        return num;
+    };
+
+    const minRent = parseRent(req.query.minRent, "minRent");
+    const maxRent = parseRent(req.query.maxRent, "maxRent");
+
+    if (minRent !== undefined && maxRent !== undefined && minRent > maxRent) {
+        throw new ApiError(400, "minRent cannot be greater than maxRent.");
+    }
+
+    const posts = await getApprovedPostsByPriceRange({ minRent, maxRent });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, { posts, iutGate: IUT_GATE }, "Filtered listings fetched"));
+});

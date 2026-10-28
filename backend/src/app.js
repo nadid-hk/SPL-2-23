@@ -1,0 +1,59 @@
+import express from "express"
+import cors from "cors"
+import { corsOptions } from "./utils/cors.util.js"
+import cookieParser from "cookie-parser"
+import userRouter from "./routes/user.route.js"
+import profileRouter from "./routes/profile.route.js" // ── FIX: Import your new profile router
+import homeRegisterRouter from "./routes/homeRegister.route.js"
+import reviewRouter from "./routes/review.route.js"
+import postRouter from "./routes/post.route.js"
+import adminRouter from "./routes/admin.route.js"
+import notificationRouter from "./routes/notification.route.js"
+import otpRouter from "./routes/otp.route.js"
+import homeOwnerInfoRouter from "./routes/homeOwnerInfo.route.js"
+import filterPost from "./routes/postFilter.js";
+// ─── CHAT FEATURE (Talha) ─── chat router import
+import chatRouter from "./routes/chat.route.js"
+// ─── END CHAT FEATURE ───
+
+const app = express()
+
+// ─── CROSS-DEVICE ACCESS ─── was: origin: "http://localhost:3000"
+// Hardcoding one origin meant a laptop opening the app over the LAN as
+// http://<ip>:3000 had every response discarded by its browser. See
+// utils/cors.util.js. index.js must use the SAME policy for the websocket.
+app.use(cors(corsOptions))
+
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+app.use(cookieParser())
+
+// Mounted base endpoints
+app.use("/api/v1/users", profileRouter)
+app.use("/api/v1/users", userRouter)
+
+app.use("/api", homeRegisterRouter)   // /api/home-register, /api/home-register/approved, /api/home-register/lookup/:khatianNumber
+app.use("/api", reviewRouter)         // /api/posts/:id/reviews, /api/posts/:id/tenant-candidates
+app.use("/api", postRouter)           // /api/posts, /api/posts/approved
+app.use("/api", adminRouter)          // /api/admin/...
+app.use("/api", notificationRouter)   // /api/notifications/...
+app.use("/api/otp", otpRouter)           // /api/otp/...
+app.use("/api/ownerinfo",homeOwnerInfoRouter)
+app.use("/api/filterPost", filterPost);
+
+// ─── CHAT FEATURE (Talha) ───
+// /api/chat/conversations, /api/chat/conversations/:conversationId/messages
+// Real-time delivery is handled separately by Socket.IO — see
+// src/socket/chat.socket.js, wired up in src/index.js.
+app.use("/api", chatRouter)
+// ─── END CHAT FEATURE ───
+
+// Global error handler — must be LAST
+app.use((err, req, res, next) => {
+    return res.status(err.statusCode || 500).json({
+        success: false,
+        message: err.message || "Internal Server Error"
+    })
+})
+
+export { app }
