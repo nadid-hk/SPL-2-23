@@ -1,23 +1,74 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ─────────────────────────────────────────────────────────────────────────
+# Repo-wide ignore rules. Covers both `backend/` and `my-app/`; each of
+# those still keeps its own .gitignore for anything specific to it.
+# ─────────────────────────────────────────────────────────────────────────
 
-# dependencies
-/node_modules
-/.pnp
+# ── Dependencies ─────────────────────────────────────────────────────────
+# Never commit installed packages — package.json + package-lock.json are
+# what the repo carries, and `npm install` reproduces the rest.
+node_modules/
+.pnp
 .pnp.js
 
-# testing
-/coverage
+# ── Secrets / environment ────────────────────────────────────────────────
+# .env holds the Mongo URI, JWT secrets and Cloudinary keys. It must stay
+# local. The committed .env.sample lists the keys with no values, so a new
+# teammate knows what to fill in.
+.env
+.env.*
+!.env.sample
+!.env.example
 
-# production
-/build
+# ── Build output ─────────────────────────────────────────────────────────
+build/
+dist/
+out/
 
-# misc
-.DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# ── Uploads ──────────────────────────────────────────────────────────────
+# multer writes incoming files here before they go to Cloudinary; they are
+# per-machine scratch, not source.
+backend/public/temp/*
+backend/private/pending-uploads/*
+!backend/public/temp/.gitkeep
 
+# ── Logs ─────────────────────────────────────────────────────────────────
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+
+# ── Local database / test scaffolding ────────────────────────────────────
+# A locally-run MongoDB writes its data files here. Committing them would
+# push the whole database into git.
+data/
+*.mongodb
+_local/
+
+# ── Test output ──────────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ── Editor / IDE ─────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── OS junk ──────────────────────────────────────────────────────────────
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# ── Personal notes ───────────────────────────────────────────────────────
+# Local run/demo cheat-sheet — machine-specific paths and local credentials,
+# so it stays out of the repo.
+HOW-TO-RUN.md
+README.md
+
+# ── Misc ─────────────────────────────────────────────────────────────────
+*.tmp
+*.bak
+.cache/
