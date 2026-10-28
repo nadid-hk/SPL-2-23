@@ -44,6 +44,11 @@ button { font-family: 'DM Sans', sans-serif; cursor: pointer; }
   z-index: 100;
   box-shadow: 0 2px 12px rgba(0,0,0,.06);
 }
+.brand-name {
+  font-family: "Hind Siliguri", "Noto Sans Bengali", sans-serif;
+  
+}
+
 
 .nav-brand {
   display: flex;
@@ -204,6 +209,31 @@ button { font-family: 'DM Sans', sans-serif; cursor: pointer; }
   transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
   box-shadow: var(--shadow);
 }
+
+.btn-primaryV2 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+
+  /* Equal button width */
+  flex: 1;
+  min-width: 0;
+
+  background: var(--red);
+  color: var(--white);
+  border: none;
+  padding: 0.82rem 1rem;
+  border-radius: 12px;
+
+  font-family: 'Sora', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: var(--shadow);
+}
 .btn-primary:hover { background: var(--red-dark); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 
 .cards-section { padding: 1.5rem 2rem 4rem; max-width: 1100px; margin: 0 auto; width: 100%; }
@@ -229,9 +259,9 @@ button { font-family: 'DM Sans', sans-serif; cursor: pointer; }
 }
 .btn-link:hover { gap: 0.6rem; }
 
-.footer { background: var(--red-dark); color: rgba(255,255,255,0.9); padding: 2.25rem 2rem; }
-.footer h4 { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 0.3rem; }
-.footer p  { font-size: 0.88rem; opacity: 0.8; }
+.footer { background: var(--gray-bg); border-top: 1px solid var(--gray-mid); padding: 3rem 2rem 2rem; }
+.footer h4 { font-family: 'Sora', sans-serif; font-size: 1.2rem; font-weight: 800; letter-spacing: -.01em; color: var(--red); margin-bottom: .55rem; }
+.footer p  { max-width: 460px; font-size: .92rem; line-height: 1.7; color: var(--gray-text); }
 
 
 /* ═══════════════════════════════════════════
@@ -266,8 +296,61 @@ button { font-family: 'DM Sans', sans-serif; cursor: pointer; }
 .auth-box h2 span { color: var(--red); }
 .subtitle { font-size: 0.88rem; color: var(--gray-text); margin-bottom: 1.5rem; }
 
+/* GOOGLE BUTTON */
+.google-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--gray-mid);
+  background: var(--white);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--dark);
+  cursor: pointer;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+  margin-bottom: 1rem;
+}
+.google-btn:hover {
+  border-color: #4285F4;
+  box-shadow: 0 0 0 3px rgba(66,133,244,.12);
+  background: var(--cream);
+}
+
+/* AUTH DIVIDER */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.2rem;
+  color: var(--gray-text);
+  font-size: 0.8rem;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--gray-mid);
+}
+
+/* AUTH NOTE (temporary account warning) */
+.auth-note {
+  font-size: 0.82rem;
+  color: var(--gray-text);
+  background: var(--gray-bg);
+  border: 1px solid var(--gray-mid);
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+  margin-bottom: 1rem;
+}
+
 /* TYPE SELECTOR */
-.type-selector { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.45rem; margin-bottom: 1.4rem; }
+.type-selector { display: grid; grid-template-columns: repeat(4,1fr); gap: 0.45rem; margin-bottom: 1.4rem; }
 .type-btn {
   padding: 0.62rem 0.4rem;
   border-radius: 10px;
@@ -432,6 +515,72 @@ button { font-family: 'DM Sans', sans-serif; cursor: pointer; }
   border: 1px solid var(--gray-mid);
   border-radius: 10px;
   padding: 0.55rem 0.7rem;
+}
+
+/* ── NEW: Airbnb-style split view — listing cards + sticky map card.
+   This was the missing piece for the dashboard: SearchMap.js and the
+   .search-map* classes existed nowhere in App.css, so even once the map
+   card was wired up in JS it had no styling to render into (0-height
+   container, no sticky behaviour). ── */
+.search-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 44%);
+  gap: 1.25rem;
+  align-items: start;
+}
+.search-results-col { min-width: 0; }
+.search-map-col { position: sticky; top: 82px; height: calc(100vh - 104px); }
+.listings-grid.split { grid-template-columns: repeat(auto-fill, minmax(225px, 1fr)); }
+.prop-card.active { border-color: var(--red); box-shadow: var(--shadow-lg); transform: translateY(-3px); }
+
+.search-map, .search-map-only {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1.5px solid var(--gray-mid);
+  box-shadow: var(--shadow);
+}
+.search-map { height: 100%; }
+.search-map-container { height: 100%; width: 100%; min-height: 320px; }
+.search-map-only { height: calc(100vh - 130px); min-height: 500px; }
+.search-map-only .search-map { height: 100%; border: none; box-shadow: none; }
+
+/* ── Airbnb-style price bubble pins ── */
+.leaflet-div-icon.price-pin-wrap, .leaflet-div-icon.iut-gate-pin { background: transparent; border: none; }
+.price-pin {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--white); color: var(--dark); font-family: 'Sora', sans-serif;
+  font-weight: 800; font-size: 0.78rem; padding: 4px 10px; border-radius: 999px;
+  border: 1.5px solid var(--gray-mid); box-shadow: 0 2px 8px rgba(0,0,0,.28);
+  white-space: nowrap; cursor: pointer; transition: transform 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+.price-pin:hover, .price-pin.active {
+  background: var(--red); color: #fff; border-color: var(--red); transform: scale(1.14);
+}
+
+/* ── Map "card kicker" popup ── */
+.map-popup .leaflet-popup-content-wrapper { padding: 0; border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-lg); }
+.map-popup .leaflet-popup-content { margin: 0; width: 224px !important; }
+.map-popup-card { width: 224px; background: var(--white); color: var(--dark); }
+.map-popup-img { width: 100%; height: 124px; object-fit: cover; display: block; }
+.map-popup-noimg { width: 100%; height: 124px; display: flex; align-items: center; justify-content: center; font-size: 2rem; background: var(--gray-bg); }
+.map-popup-body { padding: 0.6rem 0.8rem 0.8rem; }
+.map-popup-title { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.9rem; margin-bottom: 3px; line-height: 1.25; }
+.map-popup-meta { font-size: 0.73rem; color: var(--gray-text); margin-bottom: 0.45rem; }
+.map-popup-price { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 0.98rem; }
+.map-popup-price span { font-weight: 500; font-size: 0.72rem; color: var(--gray-text); }
+.map-popup-btn {
+  margin-top: 0.6rem; width: 100%; background: var(--red); color: #fff; border: none;
+  border-radius: 9px; padding: 0.5rem; font-weight: 700; font-family: 'Sora', sans-serif;
+  cursor: pointer; font-size: 0.8rem;
+}
+.map-popup-btn:hover { background: var(--red-dark); }
+body.dark .leaflet-popup-content-wrapper, body.dark .leaflet-popup-tip { background: var(--white); color: var(--dark); }
+
+@media (max-width: 900px) {
+  /* Stack instead of side-by-side on narrow/mobile screens — a sticky
+     44%-width map makes no sense once columns can't sit side by side. */
+  .search-split { grid-template-columns: 1fr; }
+  .search-map-col { position: static; height: 380px; }
 }
 
 
@@ -794,6 +943,7 @@ button { font-family: 'DM Sans', sans-serif; cursor: pointer; }
   .nav-links  { display: none; }
   .hamburger  { display: flex; }
   .type-selector  { grid-template-columns: 1fr; }
+  .type-selector  { grid-template-columns: repeat(2,1fr); }
   .method-toggle  { grid-template-columns: 1fr; }
   .hero       { padding: 3rem 1.25rem 2rem; }
   .cards-section  { padding: 1rem 1.25rem 3rem; }
@@ -806,4 +956,274 @@ button { font-family: 'DM Sans', sans-serif; cursor: pointer; }
   .features-grid { grid-template-columns: 1fr; }
   .profile-grid  { grid-template-columns: 1fr; }
   .photo-grid    { grid-template-columns: 1fr; }
+}
+
+/* ═══════════════════════════════════════════
+   UI POLISH — react-icons + shared helpers
+   (notices, status buttons, icon alignment)
+═══════════════════════════════════════════ */
+.btn-icon { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; }
+
+.notice {
+  display: flex; align-items: flex-start; gap: .6rem;
+  padding: .85rem 1.1rem; margin-bottom: 1rem;
+  border-radius: 12px; border: 1.5px solid;
+  font-size: .85rem; line-height: 1.55;
+}
+.notice svg { flex-shrink: 0; margin-top: 3px; font-size: 1.05rem; }
+.notice.error { background: var(--red-hover); color: var(--red); border-color: var(--red); }
+.notice.warn  { background: #fff8e1; color: #795548; border-color: #ffe082; }
+.notice.info  { background: var(--gray-bg); color: var(--dark); border-color: var(--gray-mid); }
+.notice.info svg { color: var(--red); }
+
+.status-btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .45rem 1rem; border-radius: 999px; border: 1.5px solid;
+  font-weight: 600; font-size: .82rem; cursor: pointer; transition: all .2s;
+}
+.status-btn:hover { transform: translateY(-1px); }
+.status-btn.to-available { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+.status-btn.to-rented    { background: var(--red-hover); color: var(--red); border-color: var(--red); }
+
+.admin-chip {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .75rem; font-weight: 700; color: var(--red);
+  background: var(--white); border: 1px solid var(--gray-mid);
+  border-radius: 999px; padding: .3rem .8rem;
+}
+
+.feature-icon svg { color: var(--red); }
+.prop-meta-row svg { color: var(--red); flex-shrink: 0; }
+.back-btn { display: inline-flex; align-items: center; gap: .4rem; }
+
+.step-item { display: flex; align-items: center; justify-content: center; gap: .35rem; }
+.step-item svg { flex-shrink: 0; }
+@media (max-width: 560px) { .step-item span { display: none; } }
+
+.star { font-size: .9rem; }
+.profile-section-title svg, .reason-label svg { color: var(--red); }
+
+/* ═══════════════════════════════════════════
+   DASHBOARD FILTER BAR  (Price / Utilities / Amenities)
+   Uses only theme variables, so it follows the red theme and
+   dark mode automatically (body.dark redefines the variables).
+═══════════════════════════════════════════ */
+.filter-bar { margin: 1rem 0 1.25rem; }
+.filter-row-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.filter-menu { position: relative; }
+
+.filter-btn {
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .55rem 1rem; border-radius: 999px;
+  border: 1.5px solid var(--gray-mid);
+  background: var(--white); color: var(--dark);
+  font-family: 'DM Sans', sans-serif; font-size: .85rem; font-weight: 600;
+  transition: border-color .18s, background .18s, color .18s;
+}
+.filter-btn svg { color: var(--red); flex-shrink: 0; }
+.filter-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-hover); }
+.filter-btn.active { border-color: var(--red); background: var(--red-hover); color: var(--red); }
+
+.filter-panel {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 50;
+  min-width: 270px; max-width: 90vw; max-height: 340px; overflow-y: auto;
+  background: var(--white); color: var(--dark);
+  border: 1.5px solid var(--gray-mid); border-radius: 14px;
+  box-shadow: var(--shadow-lg); padding: .4rem;
+}
+
+.filter-option {
+  display: flex; align-items: center; gap: .65rem; width: 100%;
+  padding: .55rem .7rem; border: none; border-radius: 9px;
+  background: transparent; color: var(--dark);
+  font-family: 'DM Sans', sans-serif; font-size: .86rem; font-weight: 500; text-align: left;
+  transition: background .15s, color .15s;
+}
+.filter-option:hover { background: var(--gray-bg); }
+.filter-option.selected { background: var(--red-hover); color: var(--red); font-weight: 600; }
+
+.filter-tick {
+  width: 18px; height: 18px; flex-shrink: 0; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--gray-mid); background: var(--white); color: #fff;
+  transition: background .15s, border-color .15s;
+}
+.filter-tick.selected { background: var(--red); border-color: var(--red); }
+
+.filter-custom { border-top: 1px solid var(--gray-mid); margin: .4rem .3rem 0; padding: .7rem .4rem .35rem; }
+.filter-custom-label {
+  font-size: .72rem; font-weight: 700; color: var(--gray-text);
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: .4rem;
+}
+.filter-custom-inputs { display: flex; align-items: center; gap: .4rem; color: var(--gray-text); }
+.filter-custom-inputs input {
+  width: 100%; padding: .5rem .65rem; border-radius: 9px;
+  border: 1.5px solid var(--gray-mid); background: var(--cream); color: var(--dark);
+  font-family: 'DM Sans', sans-serif; font-size: .85rem; outline: none;
+  transition: border-color .18s, box-shadow .18s, background .18s;
+}
+.filter-custom-inputs input:focus {
+  border-color: var(--red); background: var(--white);
+  box-shadow: 0 0 0 3px rgba(176,58,46,.12);
+}
+.filter-custom-inputs input::placeholder { color: var(--gray-text); }
+.filter-error { color: var(--red); font-size: .76rem; font-weight: 600; margin-top: .35rem; }
+
+.filter-clear {
+  background: none; border: none; padding: .3rem .2rem;
+  font-size: .85rem; font-weight: 700; color: var(--red);
+}
+.filter-clear:hover { text-decoration: underline; }
+
+.filter-chips { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .8rem; }
+.filter-chip {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .28rem .45rem .28rem .75rem; border-radius: 999px;
+  background: var(--red-hover); color: var(--red);
+  border: 1px solid var(--red); font-size: .78rem; font-weight: 600;
+}
+.filter-chip-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0; border: none; border-radius: 50%;
+  background: transparent; color: inherit; transition: background .15s, color .15s;
+}
+.filter-chip-x:hover { background: var(--red); color: #fff; }
+
+@media (max-width: 640px) {
+  .filter-panel { min-width: 240px; }
+}
+/* ── TWO-TIER REVIEWS (room + owner) ──
+   Only theme variables are used, so body.dark needs no extra rules. */
+.sr-muted { font-size: 0.85rem; color: var(--gray-text); }
+.sr-heading { font-family: 'Sora', sans-serif; font-size: 0.95rem; font-weight: 700; margin-bottom: 0.9rem; }
+
+.sr-summary { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1.5rem; }
+.sr-room { min-width: 0; }
+.sr-owner { padding-left: 1.5rem; border-left: 1.5px solid var(--gray-mid); }
+
+.sr-overall { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 1.1rem; }
+.sr-overall-num {
+  font-family: 'Sora', sans-serif; font-size: 2.6rem; font-weight: 800; line-height: 1;
+  color: var(--dark); letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.sr-overall-sm { font-size: 1.6rem; }
+.sr-overall .sr-muted { display: block; margin-top: 2px; }
+
+.sr-stars { display: inline-flex; gap: 2px; color: var(--gray-mid); }
+.sr-stars .on { color: var(--red); }
+.sr-stars-sm { font-size: 0.85rem; }
+.sr-stars-md { font-size: 1rem; }
+
+/* The scorecard: six thin bars, two per row on wide screens */
+.sr-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem 1.5rem; }
+.sr-bar dt { font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; }
+.sr-bar dd { display: flex; align-items: center; gap: 0.6rem; }
+.sr-track { flex: 1; height: 5px; border-radius: 3px; background: var(--gray-bg); overflow: hidden; }
+.sr-track > span { display: block; height: 100%; background: var(--red); border-radius: 3px; }
+.sr-bar-num { font-size: 0.8rem; font-weight: 700; min-width: 1.8rem; text-align: right; font-variant-numeric: tabular-nums; }
+
+.sr-owner-id { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.8rem; font-size: 0.9rem; }
+.sr-owner-score { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem; }
+
+.sr-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; object-fit: cover;
+  background: var(--red-hover); color: var(--red);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: 'Sora', sans-serif; font-size: 0.8rem; font-weight: 800;
+}
+.sr-avatar-lg { width: 42px; height: 42px; font-size: 1rem; }
+
+.sr-tabs { display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem; border-bottom: 1.5px solid var(--gray-mid); }
+.sr-tabs button {
+  background: none; border: none; padding: 0.55rem 0.2rem; margin-right: 1rem; margin-bottom: -1.5px;
+  font-size: 0.85rem; font-weight: 600; color: var(--gray-text); border-bottom: 2px solid transparent;
+}
+.sr-tabs button.on { color: var(--red); border-bottom-color: var(--red); }
+.sr-tabs button:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+.sr-list { display: flex; flex-direction: column; gap: 0.8rem; }
+.sr-card { background: var(--gray-bg); border: 1px solid var(--gray-mid); border-radius: 12px; padding: 1rem; }
+.sr-card-head { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.55rem; }
+.sr-card-who { display: flex; flex-direction: column; min-width: 0; }
+.sr-card-who strong { font-size: 0.86rem; }
+.sr-card-who span { font-size: 0.74rem; color: var(--gray-text); }
+.sr-card-score {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
+  font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.85rem; color: var(--red);
+}
+.sr-card-note { font-size: 0.74rem; color: var(--gray-text); margin-bottom: 0.4rem; }
+.sr-card-text { font-size: 0.86rem; line-height: 1.6; color: var(--dark); white-space: pre-line; }
+.sr-card-text.sr-muted { font-style: italic; color: var(--gray-text); }
+
+.sr-write { margin-top: 1.4rem; padding-top: 1.2rem; border-top: 1.5px solid var(--gray-mid); }
+.sr-cta p { font-size: 0.88rem; margin-bottom: 0.2rem; }
+.sr-cta .btn-post-review { display: inline-flex; align-items: center; gap: 0.4rem; }
+.sr-saved { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; font-weight: 600; color: var(--success); margin-bottom: 0.4rem; }
+
+.sr-form fieldset { border: none; margin-bottom: 1.2rem; }
+.sr-form legend { font-family: 'Sora', sans-serif; font-size: 0.95rem; font-weight: 700; margin-bottom: 0.6rem; }
+.sr-input-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.35rem 0; border-bottom: 1px dashed var(--gray-mid);
+}
+.sr-input-label { font-size: 0.86rem; }
+.sr-input-stars { display: inline-flex; gap: 2px; }
+.sr-input-stars button {
+  background: none; border: none; padding: 4px; font-size: 1.25rem; line-height: 1;
+  color: var(--gray-mid); border-radius: 6px; transition: color 0.12s, transform 0.12s;
+}
+.sr-input-stars button.on { color: var(--red); }
+.sr-input-stars button:active { transform: scale(0.88); }
+.sr-input-stars button:focus-visible { outline: 2px solid var(--red); outline-offset: 1px; }
+.sr-textarea { display: block; margin-top: 0.8rem; }
+.sr-textarea span { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; }
+.sr-textarea textarea {
+  width: 100%; min-height: 84px; resize: vertical; padding: 0.7rem 0.8rem; border-radius: 10px;
+  border: 1.5px solid var(--gray-mid); background: var(--white); color: var(--dark);
+  font-family: 'DM Sans', sans-serif; font-size: 0.86rem; line-height: 1.5;
+}
+.sr-textarea textarea:focus { outline: none; border-color: var(--red); }
+.sr-form-actions, .tp-actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.sr-form-actions .btn-post-review, .tp-actions .btn-post-review { margin-top: 0; }
+.btn-post-review:disabled { opacity: 0.55; cursor: not-allowed; }
+.sr-cancel {
+  padding: 0.6rem 1.2rem; border-radius: 10px; border: 1.5px solid var(--gray-mid);
+  background: transparent; color: var(--dark); font-weight: 600; font-size: 0.86rem;
+}
+.sr-cancel:hover { border-color: var(--dark); }
+
+/* Tenant picker (owner marks a listing Rented) */
+.tp {
+  background: var(--white); border: 1.5px solid var(--red); border-radius: 14px;
+  padding: 1.2rem 1.3rem; margin: 0.75rem 0 1.25rem; box-shadow: var(--shadow);
+}
+.tp-head { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+.tp-head > svg { color: var(--red); font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
+.tp-head h3 { font-family: 'Sora', sans-serif; font-size: 1rem; margin-bottom: 0.2rem; }
+.tp-head p { font-size: 0.84rem; color: var(--gray-text); }
+.tp-options { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+.tp-option {
+  display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.8rem; cursor: pointer;
+  border: 1.5px solid var(--gray-mid); border-radius: 10px; background: var(--white);
+}
+.tp-option.on { border-color: var(--red); background: var(--red-hover); }
+.tp-option input { accent-color: var(--red); }
+.tp-option:focus-within { outline: 2px solid var(--red); outline-offset: 1px; }
+.tp-who { display: flex; flex-direction: column; min-width: 0; }
+.tp-who strong { font-size: 0.88rem; }
+.tp-who span { font-size: 0.76rem; color: var(--gray-text); overflow: hidden; text-overflow: ellipsis; }
+.tp-avatar-none { background: var(--gray-bg); color: var(--gray-text); }
+
+/* Room score on listing cards */
+.prop-rating svg { color: var(--red); }
+.prop-rating strong { color: var(--dark); }
+.prop-rating-new svg { color: var(--gray-mid); }
+
+@media (max-width: 760px) {
+  .sr-summary { grid-template-columns: 1fr; }
+  .sr-owner { padding-left: 0; border-left: none; padding-top: 1.2rem; border-top: 1.5px solid var(--gray-mid); }
+  .sr-bars { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sr-input-stars button { transition: none; }
 }
