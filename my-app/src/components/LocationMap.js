@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
+import { useEffect,useMemo } from "react";
+import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -8,6 +8,15 @@ import marker1x from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
 const DEFAULT_CENTER = [24.242, 90.404];
+
+// 🐛 FIX: SearchMap.js already does `import { IUT_GATE_LATLNG } from
+// "./LocationMap"` — it was never exported here, so that import silently
+// resolved to `undefined`, which meant SearchMap's `center` fallback and
+// gate marker position were both broken. This must stay in sync with the
+// backend's IUT_GATE in constants.js (23.94862, 90.37935) — the previous
+// DEFAULT_CENTER above ([24.242, 90.404]) was a different, unrelated point
+// and should NOT be reused for the gate.
+export const IUT_GATE_LATLNG = [23.94862, 90.37935];
 
 const DefaultIcon = L.icon({
   iconRetinaUrl: marker2x,
@@ -21,6 +30,19 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
+// Added by nadid
+function RecenterMap({ position, zoom }) {
+  const map = useMap();
+ 
+  useEffect(() => {
+    if (position && Array.isArray(position) && position.length === 2) {
+      map.setView(position, zoom);
+    }
+  }, [position, zoom, map]);
+ 
+  return null;
+}
+// till this
 export default function LocationMap({
   title = "Select Location",
   description = "Zoom in, zoom out, and drag the pin to pinpoint the property.",
@@ -48,7 +70,14 @@ export default function LocationMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-
+        {/* FIX: RecenterMap was defined but never rendered, so once the map
+            mounted it never moved again even if a real house position
+            arrived after the initial render (e.g. loaded asynchronously).
+            react-leaflet's MapContainer `center` prop is only used on the
+            very first mount, so anything that renders LocationMap before
+            its data has loaded got stuck on the initial center forever. */}
+         <RecenterMap position={position} zoom={zoom} />
+         
         <Marker
           position={position}
           draggable={draggable}
