@@ -19,10 +19,10 @@ Developed for SWE 4404: Software Project Lab II, Group 12.
 
 | Part | Technology |
 |---|---|
-| Frontend | React 19 (Create React App), React Leaflet with OpenStreetMap, Socket.IO client |
-| Backend | Node.js, Express 5, Socket.IO, Mongoose, Multer, JSON Web Tokens, bcrypt, Nodemailer |
+| Frontend | React 19, Leaflet.js, Socket.IO client |
+| Backend | Node.js, Express 5, Socket.IO, Mongoose, Multer, JSON Web Tokens, bcrypt, Nodemailer, otp-generator |
 | Database | MongoDB |
-| External services | Cloudinary (images and documents), Gmail SMTP (e-mail), Google sign-in |
+| External services | Cloudinary (images and documents), Gmail SMTP (e-mail using app passwords), Google sign-in |
 
 ## Repository structure
 
@@ -46,14 +46,88 @@ my-app/             React client
 ## Prerequisites
 
 - Node.js 18 or later, with npm
-- MongoDB 6 or later, running locally or reachable over the network
+- MongoDB 6 or later, running locally or reachable over the network (Atlas works)
 - For photo uploads: a Cloudinary account
 - For e-mail (OTP and rejection notices): a Gmail account with an app password
 - For Google sign-in: a Google OAuth client ID
 
-## Configuration
+## Setup
 
-### Backend
+### 1. Install the tools and create the accounts
+
+**Node.js 18 or later (with npm)**
+
+Download the LTS version from nodejs.org, run the installer with the defaults, then open a new terminal and verify:
+
+```
+node -v
+npm -v
+```
+
+**MongoDB 6 or later**
+
+Pick one option. Atlas is easier because there is nothing to install.
+
+*Option A: MongoDB Atlas (cloud)*
+
+1. Sign up at mongodb.com/atlas.
+2. Create a free M0 cluster in the region closest to you.
+3. Under Database Access, create a database user with a username and password (avoid special characters in the password, or URL-encode them).
+4. Under Network Access, click Add IP Address and add your current IP. For quick local testing you can allow `0.0.0.0/0`, but tighten it before going live.
+5. Click Connect, then Drivers, and copy the connection string. **Remove the database name and any `?options` from the end**, because the server appends `/Khoj` itself:
+
+```
+MONGODB_URI=mongodb+srv://USERNAME:PASSWORD@cluster0.xxxxx.mongodb.net
+```
+
+Replace `USERNAME` and `PASSWORD` with your own values.
+
+*Option B: Local install*
+
+1. Download MongoDB Community Server (version 6 or higher) from mongodb.com/try/download/community.
+2. On Windows, choose "Install as a Service" in the installer; it starts automatically.
+3. On macOS: `brew tap mongodb/brew && brew install mongodb-community`, then `brew services start mongodb-community`.
+4. Verify it is running with MongoDB Compass (optional GUI) or `mongosh`.
+5. Use this connection string (host only, no database name):
+
+```
+MONGODB_URI=mongodb://127.0.0.1:27017
+```
+
+**Cloudinary account (photo uploads)**
+
+1. Sign up for free at cloudinary.com.
+2. Open the Dashboard; the Cloud name is at the top.
+3. Go to Settings, then API Keys, to find the API Key and API Secret.
+
+**Gmail with an app password (OTP and rejection e-mails)**
+
+1. Go to myaccount.google.com/security and turn on 2-Step Verification. App passwords do not appear without it.
+2. Go to myaccount.google.com/apppasswords.
+3. Enter a name such as "backend" and click Create.
+4. Copy the 16-character password and remove the spaces. This is `SMTP_PASS`.
+
+**Google OAuth client ID (Google sign-in)**
+
+1. Go to console.cloud.google.com and create a new project.
+2. Open APIs & Services, then OAuth consent screen. Choose External, fill in the app name and your e-mail, and save. While in Testing mode, add your own Gmail under Test users, otherwise sign-in is blocked.
+3. Open Credentials, then Create Credentials, then OAuth client ID, and choose Web application.
+4. Under Authorized JavaScript origins, add `http://localhost:3000`.
+5. Click Create and copy the Client ID.
+
+Note: Google does not accept a bare IP address as an authorized origin, so Google sign-in works on `localhost` but not when the app is opened from another device at `http://<IP>:3000`. Everything else works over the LAN.
+
+### 2. Generate the token secrets
+
+`ACCESS_TOKEN_SECRET` and `REFRESH_TOKEN_SECRET` are long random strings used by `jsonwebtoken` to sign tokens. Run this twice, once for each secret, and paste the output into `backend/.env`:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
+
+Never paste a real secret into a website such as jwt.io.
+
+### 3. Backend environment
 
 Copy the template and fill in the values:
 
@@ -65,16 +139,16 @@ cp backend/.env.sample backend/.env
 |---|---|
 | `PORT` | API port, normally `8000` |
 | `NODE_ENV` | `development` or `production` |
-| `MONGODB_URI` | MongoDB host only, for example `mongodb://127.0.0.1:27017`. The database name `Khoj` is added by the server. |
+| `MONGODB_URI` | MongoDB **host only**, for example `mongodb://127.0.0.1:27017`. The database name `Khoj` (case-sensitive) is added by the server, so do not include one. |
 | `ACCESS_TOKEN_SECRET`, `ACCESS_TOKEN_EXPIRY` | Signing secret and lifetime of the access token, for example `1d` |
 | `REFRESH_TOKEN_SECRET`, `REFRESH_TOKEN_EXPIRY` | Signing secret and lifetime of the refresh token, for example `10d` |
-| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Cloudinary credentials, used when the administrator approves uploaded files |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Cloudinary credentials, needed for photo and document uploads (house registration, creating a post). Login, browsing and chat work with these blank. |
 | `CLIENT_ID` | Google OAuth client ID |
 | `ADMIN_KEY` | The key the administrator uses to log in |
 | `SMTP_USER`, `SMTP_PASS` | Gmail address and app password for OTP and rejection e-mails. Not yet listed in `.env.sample`; add them manually. |
-| `CORS_ORIGIN` | Optional. Comma-separated extra origins allowed to call the API. Local and private network addresses are always allowed. |
+| `CORS_ORIGIN` | Optional. Comma-separated extra origins allowed to call the API. Local and private network addresses are always allowed. Not yet listed in `.env.sample`. |
 
-### Frontend
+### 4. Frontend environment
 
 ```
 cp my-app/.env.sample my-app/.env
@@ -83,13 +157,25 @@ cp my-app/.env.sample my-app/.env
 | Variable | Purpose |
 |---|---|
 | `REACT_APP_GOOGLE_CLIENT_ID` | Same value as `CLIENT_ID` in the backend |
-| `REACT_APP_API_URL` | Optional. Address of the API if it is not on the same host as the client. By default the client uses port 8000 on the host it was loaded from. |
+| `REACT_APP_API_URL` | Optional. Origin of the API (no trailing slash, no `/api`) if it is not on the same host as the client. By default the client uses port 8000 on the host it was loaded from. Not yet listed in `.env.sample`. |
 
 Restart the frontend after changing `my-app/.env`; Create React App reads it only at start-up.
 
 ## Build and run
 
-Start MongoDB first. Then, in two terminals:
+### Start MongoDB first
+
+**Atlas (cloud):** Nothing to start. The cluster is always running. Just make sure your current IP is allowed under Network Access.
+
+**Local install (Windows):** If you chose "Install as a Service" in the installer, MongoDB is already running and starts automatically with Windows. To check or start it, open PowerShell as Administrator:
+
+```
+net start MongoDB
+```
+
+### Start the backend and frontend
+
+Then, in two terminals:
 
 ```
 cd backend
