@@ -238,7 +238,7 @@ The API was also checked with 35 scripted HTTP requests against a separate test 
 |---|---|
 | Talha Zubayer | 230042119 |
 | Ayman Rahman Bhuiyan | 230042140 |
-| Md Nadid Hasan Khan | 230042146 |
+| Md Nadid Hasan | 230042146 |
 
 ## Licence
 
