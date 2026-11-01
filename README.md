@@ -174,7 +174,7 @@ net start MongoDB
 ```
 
 ### Start the backend and frontend
-
+Before starting, navigate to your project directory SPL-2-23 in the terminal.
 Then, in two terminals:
 
 ```
